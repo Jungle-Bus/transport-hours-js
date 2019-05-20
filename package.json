@@ -1,0 +1,36 @@
+{
+  "name": "transport-hours",
+  "version": "0.0.0",
+  "description": "Library for reading/writing public transport hours information from OpenStreetMap",
+  "main": "src/TransportHours.js",
+  "scripts": {
+    "test": "jest",
+    "watch": "jest --watch",
+    "doc": "npm run doc:check && documentation build ./src/* -f md --shallow > API.md",
+    "doc:check": "documentation lint ./src/*"
+  },
+  "pre-commit": [ "test", "doc", "git add API.md" ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jungle-Bus/transport-hours-js.git"
+  },
+  "keywords": [
+    "jungle-bus",
+    "transport",
+    "hours",
+    "opening",
+    "hours",
+    "interval",
+    "parser"
+  ],
+  "author": "Adrien Pavie",
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/Jungle-Bus/transport-hours-js/issues"
+  },
+  "homepage": "https://github.com/Jungle-Bus/transport-hours-js#readme",
+  "devDependencies": {
+    "documentation": "^11.0.0",
+    "jest": "^24.8.0"
+  }
+}
