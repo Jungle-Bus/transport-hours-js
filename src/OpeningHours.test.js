@@ -36,6 +36,23 @@ describe("OpeningHours", () => {
 			expect(result).toEqual(expected);
 		});
 		
+		it("handles day + hours with short hours notation", () => {
+			const value = "Mo 1:00-5:00";
+			const oh = new OpeningHours(value);
+			const result = oh.getTable();
+			const expected = {
+				mo: ["01:00-05:00"],
+				tu: [],
+				we: [],
+				th: [],
+				fr: [],
+				sa: [],
+				su: [],
+				ph: []
+			};
+			expect(result).toEqual(expected);
+		});
+		
 		it("handles days range + hours", () => {
 			const value = "Mo-We 10:00-12:00";
 			const oh = new OpeningHours(value);
@@ -98,6 +115,40 @@ describe("OpeningHours", () => {
 				th: [],
 				fr: [],
 				sa: [],
+				su: [],
+				ph: []
+			};
+			expect(result).toEqual(expected);
+		});
+		
+		it("handles days only", () => {
+			const value = "Mo-We";
+			const oh = new OpeningHours(value);
+			const result = oh.getTable();
+			const expected = {
+				mo: ["00:00-24:00"],
+				tu: ["00:00-24:00"],
+				we: ["00:00-24:00"],
+				th: [],
+				fr: [],
+				sa: [],
+				su: [],
+				ph: []
+			};
+			expect(result).toEqual(expected);
+		});
+		
+		it("handles days only in a subpart", () => {
+			const value = "Mo-We; Sa 01:00-15:00";
+			const oh = new OpeningHours(value);
+			const result = oh.getTable();
+			const expected = {
+				mo: ["00:00-24:00"],
+				tu: ["00:00-24:00"],
+				we: ["00:00-24:00"],
+				th: [],
+				fr: [],
+				sa: ["01:00-15:00"],
 				su: [],
 				ph: []
 			};

@@ -87,7 +87,7 @@ class OpeningHours {
 		let times = []
 		segments.forEach((segment,i) => {
 			if (this._checkDay(segment)) {
-				if (times.length == 0) {
+				if (times.length === 0) {
 					days = days.concat(this._parseDays(segment));
 				}
 				else {
@@ -112,7 +112,7 @@ class OpeningHours {
 					times = []
 				}
 				else {
-					times.push(segment)
+					times.push(this._cleanTime(segment))
 				}
 			}
 		})
@@ -125,7 +125,13 @@ class OpeningHours {
 			else {
 				tempData[day] = times
 			}
-		})
+		});
+		
+		if(days.length > 0 && times.length === 0) {
+			days.forEach((day) => {
+				tempData[day] = ["00:00-24:00"];
+			});
+		}
 
 		//apply data to main obj
 		for (let key in tempData) {
@@ -151,6 +157,20 @@ class OpeningHours {
 		})
 
 		return days
+	}
+	
+	/**
+	 * @private
+	 */
+	_cleanTime(time) {
+// 		console.log(time);
+		if (time.match(/^[0-9]:[0-9]{2}/)) {
+			time = "0"+time;
+		}
+		if (time.match(/^[0-9]{2}:[0-9]{2}\-[0-9]:[0-9]{2}/)) {
+			time = time.substring(0,6)+"0"+time.substring(6);
+		}
+		return time;
 	}
 
 	/**
@@ -231,17 +251,17 @@ class OpeningHours {
 	_checkTime(inp) {
 		//e.g. 09:00+
 		if (inp.match(/[0-9]{1,2}:[0-9]{2}\+/)) {
-			return true
+			return true;
 		}
 		//e.g. 08:00-12:00
 		if (inp.match(/[0-9]{1,2}:[0-9]{2}\-[0-9]{1,2}:[0-9]{2}/)) {
-			return true
+			return true;
 		}
 		//off
 		if (inp.match(/off/)) {
-			return true
+			return true;
 		}
-		return false
+		return false;
 	}
 
 	/**

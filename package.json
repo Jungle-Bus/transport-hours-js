@@ -7,9 +7,10 @@
     "test": "jest",
     "watch": "jest --watch",
     "doc": "npm run doc:check && documentation build ./src/* -f md --shallow > API.md",
-    "doc:check": "documentation lint ./src/*"
+    "doc:check": "documentation lint ./src/*",
+    "build:values": "wget \"http://overpass-api.de/api/interpreter?data=%5Bout%3Acsv%28%22interval%3Aconditional%22%29%5D%5Btimeout%3A25%5D%3B%0A%28%0A%20%20relation%5B%22interval%3Aconditional%22%5D%3B%0A%29%3B%0Aout%20body%3B\" -O res/overpass_values.txt ; cat res/overpass_values.txt | tail -n +2 | sort | uniq | sed 's/^\"//g;s/\"$//g' > res/interval_conditional.txt"
   },
-  "pre-commit": [ "test", "doc", "git add API.md" ],
+  "pre-commit": [ "test", "doc:check", "doc", "git add API.md" ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Jungle-Bus/transport-hours-js.git"
