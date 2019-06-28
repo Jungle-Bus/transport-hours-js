@@ -4,6 +4,156 @@ const fs = require('fs');
 describe("TransportHours", () => {
 	const th = new TransportHours();
 	
+	describe("tagsToHoursObject", () => {
+		it("handles all tags set", () => {
+			const tags = {
+				type: "route",
+				route: "bus",
+				name: "Ligne 42",
+				opening_hours: "Mo-Fr 05:00-22:00",
+				interval: "00:30",
+				"interval:conditional": "00:10 @ (Mo-Fr 07:00-09:30, 16:30-19:00)"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: {
+					"mo": ["05:00-22:00"],
+					"tu": ["05:00-22:00"],
+					"we": ["05:00-22:00"],
+					"th": ["05:00-22:00"],
+					"fr": ["05:00-22:00"],
+					"sa": [],
+					"su": [],
+					"ph": []
+				},
+				defaultInterval: 30,
+				otherIntervals: [
+					{
+						interval: 10,
+						applies: {
+							"mo": ["07:00-09:30", "16:30-19:00"],
+							"tu": ["07:00-09:30", "16:30-19:00"],
+							"we": ["07:00-09:30", "16:30-19:00"],
+							"th": ["07:00-09:30", "16:30-19:00"],
+							"fr": ["07:00-09:30", "16:30-19:00"],
+							"sa": [],
+							"su": [],
+							"ph": []
+						}
+					}
+				]
+			};
+			expect(result).toStrictEqual(expected);
+		});
+		
+		it("handles no interval:conditional tag", () => {
+			const tags = {
+				type: "route",
+				route: "bus",
+				name: "Ligne 42",
+				opening_hours: "Mo-Fr 05:00-22:00",
+				interval: "00:30"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: {
+					"mo": ["05:00-22:00"],
+					"tu": ["05:00-22:00"],
+					"we": ["05:00-22:00"],
+					"th": ["05:00-22:00"],
+					"fr": ["05:00-22:00"],
+					"sa": [],
+					"su": [],
+					"ph": []
+				},
+				defaultInterval: 30,
+				otherIntervals: "unset"
+			};
+			expect(result).toStrictEqual(expected);
+		});
+		
+		it("handles no opening_hours tag", () => {
+			const tags = {
+				type: "route",
+				route: "bus",
+				name: "Ligne 42",
+				interval: "00:30"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: "unset",
+				defaultInterval: 30,
+				otherIntervals: "unset"
+			};
+			expect(result).toStrictEqual(expected);
+		});
+		
+		it("handles case where all tags are missing", () => {
+			const tags = {
+				type: "route",
+				route: "bus",
+				name: "Ligne 42"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: "unset",
+				defaultInterval: "unset",
+				otherIntervals: "unset"
+			};
+			expect(result).toStrictEqual(expected);
+		});
+		
+		it("handles opening_hours being invalid", () => {
+			const tags = {
+				type: "route",
+				route: "bus",
+				name: "Ligne 42",
+				opening_hours: "what ?",
+				interval: "00:30"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: "invalid",
+				defaultInterval: 30,
+				otherIntervals: "unset"
+			};
+			expect(result).toStrictEqual(expected);
+		});
+		
+		it("handles interval being invalid", () => {
+			const tags = {
+				type: "route",
+				route: "bus",
+				name: "Ligne 42",
+				interval: "12 minutes is so long to wait for a bus..."
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: "unset",
+				defaultInterval: "invalid",
+				otherIntervals: "unset"
+			};
+			expect(result).toStrictEqual(expected);
+		});
+		
+		it("handles interval:conditional being invalid", () => {
+			const tags = {
+				type: "route",
+				route: "bus",
+				name: "Ligne 42",
+				interval: "00:30",
+				"interval:conditional": "12 @ random hours"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: "unset",
+				defaultInterval: 30,
+				otherIntervals: "invalid"
+			};
+			expect(result).toStrictEqual(expected);
+		});
+	});
+	
 	describe("intervalConditionalStringToObject", () => {
 		it("handles standard tag", () => {
 			const intervalCond = "00:05 @ (Mo-Fr 07:00-10:00); 00:10 @ (Mo-Fr 16:30-19:00); 00:30 @ (Mo-Su 22:00-05:00)";

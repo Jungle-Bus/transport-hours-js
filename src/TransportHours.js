@@ -1,14 +1,59 @@
 const OpeningHours = require("./OpeningHours");
 
+const TAG_UNSET = "unset";
+const TAG_INVALID = "invalid";
+
 /**
  * TransportHours is the main class of the library.
  * It contains all main functions which can help managing public transport hours.
  */
 class TransportHours {
 	/**
+	 * Converts OpenStreetMap tags into a ready-to-use JS object representing the hours of the public transport line.
+	 * Parsed tags are : interval=\*, opening_hours=\* and interval:conditional=\*
+	 * @param {Object} tags The list of tags from OpenStreetMap
+	 * @return {Object} The hours of the line, with structure { opens: {@link #gettable|opening hours table}, defaultInterval: minutes (int), otherIntervals: {@link #intervalconditionalstringtoobject|interval rules object} }. Each field can also have value "unset" if no tag is defined, or "invalid" if tag can't be read.
+	 */
+	tagsToHoursObject(tags) {
+		// Read opening_hours
+		let opens;
+		try {
+			opens = tags.opening_hours ? (new OpeningHours(tags.opening_hours)).getTable() : TAG_UNSET;
+		}
+		catch(e) {
+			opens = TAG_INVALID;
+		}
+		
+		// Read interval
+		let interval;
+		try {
+			interval = tags.interval ? this.intervalStringToMinutes(tags.interval) : TAG_UNSET;
+		}
+		catch(e) {
+			interval = TAG_INVALID;
+		}
+		
+		// Read interval:conditional
+		let intervalCond;
+		try {
+			intervalCond = tags["interval:conditional"] ? this.intervalConditionalStringToObject(tags["interval:conditional"]) : TAG_UNSET;
+		}
+		catch(e) {
+			intervalCond = TAG_INVALID;
+		}
+		
+		// Send result
+		return {
+			opens: opens,
+			defaultInterval: interval,
+			otherIntervals: intervalCond
+		};
+	}
+	
+	/**
 	 * Reads an interval:conditional=* tag from OpenStreetMap, and converts it into a JS object.
 	 * @param {string} intervalConditional The {@link https://wiki.openstreetmap.org/wiki/Key:interval|interval:conditional} tag
-	 * @return {Object[]} A list of rules, each having structure { interval: minutes (int), applies: {@link OpeningHours#getTable|opening hours table} }
+	 * @return {Object[]} A list of rules, each having structure { interval: minutes (int), applies: {@link #gettable|opening hours table} }
 	 */
 	intervalConditionalStringToObject(intervalConditional) {
 		return this._splitMultipleIntervalConditionalString(intervalConditional).map(p => this._readSingleIntervalConditionalString(p));
@@ -50,7 +95,7 @@ class TransportHours {
 	 * Parses a single conditional interval value (for example : `15 @ (08:00-15:00)`).
 	 * This should be used as many times as you have different rules (separated by semicolon).
 	 * @param {string} intervalConditional
-	 * @return {Object} Object with structure { interval: minutes (int), applies: {@link OpeningHours#getTable|opening hours table} }
+	 * @return {Object} Object with structure { interval: minutes (int), applies: {@link #gettable|opening hours table} }
 	 * @private
 	 */
 	_readSingleIntervalConditionalString(intervalConditional) {

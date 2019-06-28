@@ -6,35 +6,48 @@
     -   [Parameters][2]
     -   [getTable][3]
 -   [TransportHours][4]
-    -   [intervalConditionalStringToObject][5]
+    -   [tagsToHoursObject][5]
         -   [Parameters][6]
-    -   [intervalStringToMinutes][7]
+    -   [intervalConditionalStringToObject][7]
         -   [Parameters][8]
-    -   [minutesToIntervalString][9]
+    -   [intervalStringToMinutes][9]
         -   [Parameters][10]
+    -   [minutesToIntervalString][11]
+        -   [Parameters][12]
 
 ## OpeningHours
 
--   **See: [Original repository][11]**
+-   **See: [Original repository][13]**
 
-OpeningHours handles parsing of [opening_hours=\*][12] tag.
+OpeningHours handles parsing of [opening_hours=\*][14] tag.
 It only supports basic version of the tag, as we don't need full implementation for public transport hours.
 Based on ubahnverleih implementation, edited to use vanilla JS syntax
 
 ### Parameters
 
--   `value` **[string][13]** The opening_hours=\* value
+-   `value` **[string][15]** The opening_hours=\* value
 
 ### getTable
 
 Get the parsed value as a table
 
-Returns **[Object][14]** The hours, as { day: [ hours ] }
+Returns **[Object][16]** The hours, as { day: [ hours ] }
 
 ## TransportHours
 
 TransportHours is the main class of the library.
 It contains all main functions which can help managing public transport hours.
+
+### tagsToHoursObject
+
+Converts OpenStreetMap tags into a ready-to-use JS object representing the hours of the public transport line.
+Parsed tags are : interval=\*, opening_hours=\* and interval:conditional=\*
+
+#### Parameters
+
+-   `tags` **[Object][16]** The list of tags from OpenStreetMap
+
+Returns **[Object][16]** The hours of the line, with structure { opens: [opening hours table][3], defaultInterval: minutes (int), otherIntervals: [interval rules object][7] }. Each field can also have value "unset" if no tag is defined, or "invalid" if tag can't be read.
 
 ### intervalConditionalStringToObject
 
@@ -42,9 +55,9 @@ Reads an interval:conditional=\* tag from OpenStreetMap, and converts it into a 
 
 #### Parameters
 
--   `intervalConditional` **[string][13]** The [interval:conditional][15] tag
+-   `intervalConditional` **[string][15]** The [interval:conditional][17] tag
 
-Returns **[Array][16]&lt;[Object][14]>** A list of rules, each having structure { interval: minutes (int), applies: [opening hours table][17] }
+Returns **[Array][18]&lt;[Object][16]>** A list of rules, each having structure { interval: minutes (int), applies: [opening hours table][3] }
 
 ### intervalStringToMinutes
 
@@ -52,12 +65,12 @@ Converts an interval=\* string into an amount of minutes
 
 #### Parameters
 
--   `interval` **[string][13]** The [interval string][15]
+-   `interval` **[string][15]** The [interval string][17]
 
 
--   Throws **[Error][18]** If interval is invalid
+-   Throws **[Error][19]** If interval is invalid
 
-Returns **[number][19]** The amount of minutes (can be a decimal values if seconds are used)
+Returns **[number][20]** The amount of minutes (can be a decimal values if seconds are used)
 
 ### minutesToIntervalString
 
@@ -65,9 +78,9 @@ Converts an amount of minutes into an interval=\* string
 
 #### Parameters
 
--   `minutes` **[number][19]** The amount of minutes
+-   `minutes` **[number][20]** The amount of minutes
 
-Returns **[string][13]** The [interval string][15], in HH:MM:SS format
+Returns **[string][15]** The [interval string][17], in HH:MM:SS format
 
 [1]: #openinghours
 
@@ -77,32 +90,34 @@ Returns **[string][13]** The [interval string][15], in HH:MM:SS format
 
 [4]: #transporthours
 
-[5]: #intervalconditionalstringtoobject
+[5]: #tagstohoursobject
 
 [6]: #parameters-1
 
-[7]: #intervalstringtominutes
+[7]: #intervalconditionalstringtoobject
 
 [8]: #parameters-2
 
-[9]: #minutestointervalstring
+[9]: #intervalstringtominutes
 
 [10]: #parameters-3
 
-[11]: https://github.com/ubahnverleih/simple-opening-hours
+[11]: #minutestointervalstring
 
-[12]: https://wiki.openstreetmap.org/wiki/Key:opening_hours
+[12]: #parameters-4
 
-[13]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[13]: https://github.com/ubahnverleih/simple-opening-hours
 
-[14]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
+[14]: https://wiki.openstreetmap.org/wiki/Key:opening_hours
 
-[15]: https://wiki.openstreetmap.org/wiki/Key:interval
+[15]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
 
-[16]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
+[16]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
 
-[17]: #openinghoursgettable
+[17]: https://wiki.openstreetmap.org/wiki/Key:interval
 
-[18]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error
+[18]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
 
-[19]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
+[19]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error
+
+[20]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
