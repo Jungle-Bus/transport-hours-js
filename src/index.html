@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8" />
+	<title>Transport Hours JS</title>
+</head>
+<body>
+	<h1>Transport Hours JS examples</h1>
+	
+	<h2>OSM tags to JS object</h2>
+	<p>The following OSM tags :</p>
+	<textarea rows="8" style="width: 100%;" id="input"></textarea>
+	<p>Are tranformed into this hours object :</p>
+	<textarea rows="20" style="width: 100%;" id="output"></textarea>
+	
+	<script src="./TransportHours.js"></script>
+	<script>
+		// Create parser
+		var th = new TransportHours();
+		
+		// Transform some tags
+		var tags = {
+			type: "route",
+			route: "bus",
+			name: "Line 42",
+			opening_hours: "Mo-Fr 05:00-22:00",
+			interval: "00:30",
+			"interval:conditional": "00:10 @ (Mo-Fr 07:00-09:30, 16:30-19:00)"
+		};
+		var result = th.tagsToHoursObject(tags);
+		
+		// Display result
+		document.getElementById("input").innerHTML = JSON.stringify(tags, null, 2);
+		document.getElementById("output").innerHTML = JSON.stringify(result, null, 2);
+	</script>
+</body>
+</html>

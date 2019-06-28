@@ -5,9 +5,15 @@
 TransportHours is a JavaScript library for easy reading/writing of [public transport hours](https://wiki.openstreetmap.org/wiki/Key:interval) present in OpenStreetMap. It interprets string values from OSM tags, and also converts your JS objects into string values to go back into OSM.
 
 
-## Installation
+## Install
+
+### From NPM
 
 TODO
+
+### Using pre-compiled version
+
+Download [ready-to-use JS file and example page](dist/). You can either include the file in your web page (using `<script>` markup) or in your NodeJS project.
 
 
 ## Usage
@@ -25,7 +31,8 @@ cd transport-hours-js/
 
 npm install
 
-npm run test # Run unit tests
+npm run test # Runs unit tests
+npm run build # Creates dist/ folder and compiles JS code
 ```
 
 More information for developers can be found in [develop documentation](DEVELOP.md).

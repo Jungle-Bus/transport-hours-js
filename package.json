@@ -6,16 +6,21 @@
   "scripts": {
     "test": "jest",
     "watch": "jest --watch",
-    "doc": "npm run doc:check && documentation build ./src/* -f md --shallow > API.md",
-    "doc:check": "documentation lint ./src/*",
-    "doc:embed": "git add API.md",
-    "build:values": "wget \"http://overpass-api.de/api/interpreter?data=%5Bout%3Acsv%28%22interval%3Aconditional%22%29%5D%5Btimeout%3A25%5D%3B%0A%28%0A%20%20relation%5B%22interval%3Aconditional%22%5D%3B%0A%29%3B%0Aout%20body%3B\" -O res/overpass_values.txt ; cat res/overpass_values.txt | tail -n +2 | sort | uniq | sed 's/^\"//g;s/\"$//g' > res/interval_conditional.txt"
+    "doc": "npm run doc:check && documentation build ./src/*.js -f md --shallow > API.md",
+    "doc:check": "documentation lint ./src/*.js",
+    "build": "npm run assets && npm run build:js",
+    "assets": "mkdir -p ./dist && cp ./src/index.html ./dist/",
+    "build:js": "browserify ./src/TransportHours.js -o ./dist/TransportHours.js -s TransportHours -t [ babelify --presets [ @babel/preset-env minify ] --no-comments ]",
+    "build:values": "wget \"http://overpass-api.de/api/interpreter?data=%5Bout%3Acsv%28%22interval%3Aconditional%22%29%5D%5Btimeout%3A25%5D%3B%0A%28%0A%20%20relation%5B%22interval%3Aconditional%22%5D%3B%0A%29%3B%0Aout%20body%3B\" -O res/overpass_values.txt ; cat res/overpass_values.txt | tail -n +2 | sort | uniq | sed 's/^\"//g;s/\"$//g' > res/interval_conditional.txt",
+    "build:embedgit": "git add -f ./API.md ./dist/",
+    "clean": "rm -rf ./dist"
   },
   "pre-commit": [
+    "clean",
     "test",
-    "doc:check",
     "doc",
-    "doc:embed"
+    "build",
+    "build:embedgit"
   ],
   "repository": {
     "type": "git",
@@ -37,6 +42,12 @@
   },
   "homepage": "https://github.com/Jungle-Bus/transport-hours-js#readme",
   "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.5",
+    "@babel/preset-env": "^7.4.5",
+    "babel-preset-minify": "^0.5.0",
+    "babelify": "^10.0.0",
+    "browserify": "^16.2.3",
     "documentation": "^11.0.0",
     "jest": "^24.8.0",
     "pre-commit": "^1.2.2"
