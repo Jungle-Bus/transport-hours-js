@@ -51,5 +51,8 @@
     "documentation": "^11.0.0",
     "jest": "^24.8.0",
     "pre-commit": "^1.2.2"
+  },
+  "dependencies": {
+    "fast-deep-equal": "^2.0.1"
   }
 }

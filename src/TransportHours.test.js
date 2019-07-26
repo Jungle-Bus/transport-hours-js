@@ -41,6 +41,9 @@ describe("TransportHours", () => {
 							"ph": []
 						}
 					}
+				],
+				otherIntervalsByDays: [
+					{ days: [ "mo", "tu", "we", "th", "fr" ], intervals: { "07:00-09:30": 10, "16:30-19:00": 10 } }
 				]
 			};
 			expect(result).toStrictEqual(expected);
@@ -67,7 +70,8 @@ describe("TransportHours", () => {
 					"ph": []
 				},
 				defaultInterval: 30,
-				otherIntervals: "unset"
+				otherIntervals: "unset",
+				otherIntervalsByDays: "unset"
 			};
 			expect(result).toStrictEqual(expected);
 		});
@@ -83,7 +87,8 @@ describe("TransportHours", () => {
 			const expected = {
 				opens: "unset",
 				defaultInterval: 30,
-				otherIntervals: "unset"
+				otherIntervals: "unset",
+				otherIntervalsByDays: "unset"
 			};
 			expect(result).toStrictEqual(expected);
 		});
@@ -98,7 +103,8 @@ describe("TransportHours", () => {
 			const expected = {
 				opens: "unset",
 				defaultInterval: "unset",
-				otherIntervals: "unset"
+				otherIntervals: "unset",
+				otherIntervalsByDays: "unset"
 			};
 			expect(result).toStrictEqual(expected);
 		});
@@ -115,7 +121,8 @@ describe("TransportHours", () => {
 			const expected = {
 				opens: "invalid",
 				defaultInterval: 30,
-				otherIntervals: "unset"
+				otherIntervals: "unset",
+				otherIntervalsByDays: "unset"
 			};
 			expect(result).toStrictEqual(expected);
 		});
@@ -131,7 +138,8 @@ describe("TransportHours", () => {
 			const expected = {
 				opens: "unset",
 				defaultInterval: "invalid",
-				otherIntervals: "unset"
+				otherIntervals: "unset",
+				otherIntervalsByDays: "unset"
 			};
 			expect(result).toStrictEqual(expected);
 		});
@@ -148,7 +156,8 @@ describe("TransportHours", () => {
 			const expected = {
 				opens: "unset",
 				defaultInterval: 30,
-				otherIntervals: "invalid"
+				otherIntervals: "invalid",
+				otherIntervalsByDays: "invalid"
 			};
 			expect(result).toStrictEqual(expected);
 		});
@@ -227,6 +236,50 @@ describe("TransportHours", () => {
 					done();
 				}
 			});
+		});
+	});
+	
+	describe("_intervalConditionObjectToIntervalByDays", () => {
+		it("works with distinct days", () => {
+			const intvObj = [
+				{ interval: 10, applies: { mo: [ "00:00-01:00" ], tu: [ "01:00-02:00" ], we: [ "02:00-03:00" ], th: [], fr: [], sa: [], su: [], ph: [] } },
+				{ interval: 20, applies: { mo: [], tu: [], we: [], th: [], fr: [], sa: [ "05:00-07:00" ], su: [], ph: [] } }
+			];
+			const result = th._intervalConditionObjectToIntervalByDays(intvObj);
+			const expected = [
+				{ days: [ "mo" ], intervals: { "00:00-01:00": 10 } },
+				{ days: [ "tu" ], intervals: { "01:00-02:00": 10 } },
+				{ days: [ "we" ], intervals: { "02:00-03:00": 10 } },
+				{ days: [ "sa" ], intervals: { "05:00-07:00": 20 } }
+			];
+			expect(result).toStrictEqual(expected);
+		});
+		
+		it("merges equal days", () => {
+			const intvObj = [
+				{ interval: 10, applies: { mo: [ "00:00-01:00" ], tu: [ "00:00-01:00" ], we: [ "00:00-01:00" ], th: [], fr: [], sa: [], su: [], ph: [] } },
+				{ interval: 20, applies: { mo: [], tu: [], we: [], th: [], fr: [], sa: [ "05:00-07:00" ], su: [], ph: [] } }
+			];
+			const result = th._intervalConditionObjectToIntervalByDays(intvObj);
+			const expected = [
+				{ days: [ "mo", "tu", "we" ], intervals: { "00:00-01:00": 10 } },
+				{ days: [ "sa" ], intervals: { "05:00-07:00": 20 } }
+			];
+			expect(result).toStrictEqual(expected);
+		});
+		
+		it("distinguish partially equal days", () => {
+			const intvObj = [
+				{ interval: 10, applies: { mo: [ "00:00-01:00" ], tu: [ "00:00-01:00", "05:00-07:00" ], we: [ "00:00-01:00" ], th: [], fr: [], sa: [], su: [], ph: [] } },
+				{ interval: 20, applies: { mo: [], tu: [], we: [], th: [], fr: [], sa: [ "05:00-07:00" ], su: [], ph: [] } }
+			];
+			const result = th._intervalConditionObjectToIntervalByDays(intvObj);
+			const expected = [
+				{ days: [ "mo", "we" ], intervals: { "00:00-01:00": 10 } },
+				{ days: [ "tu" ], intervals: { "00:00-01:00": 10, "05:00-07:00": 10 } },
+				{ days: [ "sa" ], intervals: { "05:00-07:00": 20 } }
+			];
+			expect(result).toStrictEqual(expected);
 		});
 	});
 	

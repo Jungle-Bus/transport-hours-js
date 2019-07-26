@@ -1,4 +1,5 @@
 const OpeningHours = require("./OpeningHours");
+const deepEqual = require("fast-deep-equal");
 
 const TAG_UNSET = "unset";
 const TAG_INVALID = "invalid";
@@ -12,7 +13,7 @@ class TransportHours {
 	 * Converts OpenStreetMap tags into a ready-to-use JS object representing the hours of the public transport line.
 	 * Parsed tags are : interval=\*, opening_hours=\* and interval:conditional=\*
 	 * @param {Object} tags The list of tags from OpenStreetMap
-	 * @return {Object} The hours of the line, with structure { opens: {@link #gettable|opening hours table}, defaultInterval: minutes (int), otherIntervals: {@link #intervalconditionalstringtoobject|interval rules object} }. Each field can also have value "unset" if no tag is defined, or "invalid" if tag can't be read.
+	 * @return {Object} The hours of the line, with structure { opens: {@link #gettable|opening hours table}, defaultInterval: minutes (int), otherIntervals: {@link #intervalconditionalstringtoobject|interval rules object}, otherIntervalsByDays: list of interval by days (structure: { days: string[], intervals: { hoursRange: interval } }) }. Each field can also have value "unset" if no tag is defined, or "invalid" if tag can't be read.
 	 */
 	tagsToHoursObject(tags) {
 		// Read opening_hours
@@ -34,19 +35,22 @@ class TransportHours {
 		}
 		
 		// Read interval:conditional
-		let intervalCond;
+		let intervalCond, intervalCondByDay;
 		try {
 			intervalCond = tags["interval:conditional"] ? this.intervalConditionalStringToObject(tags["interval:conditional"]) : TAG_UNSET;
+			intervalCondByDay = intervalCond !== TAG_UNSET ? this._intervalConditionObjectToIntervalByDays(intervalCond) : TAG_UNSET;
 		}
 		catch(e) {
 			intervalCond = TAG_INVALID;
+			intervalCondByDay = TAG_INVALID;
 		}
 		
 		// Send result
 		return {
 			opens: opens,
 			defaultInterval: interval,
-			otherIntervals: intervalCond
+			otherIntervals: intervalCond,
+			otherIntervalsByDays: intervalCondByDay
 		};
 	}
 	
@@ -57,6 +61,45 @@ class TransportHours {
 	 */
 	intervalConditionalStringToObject(intervalConditional) {
 		return this._splitMultipleIntervalConditionalString(intervalConditional).map(p => this._readSingleIntervalConditionalString(p));
+	}
+	
+	/**
+	 * Transforms an object containing the conditional intervals into an object structured day by day.
+	 * @private
+	 */
+	_intervalConditionObjectToIntervalByDays(intervalConditionalObject) {
+		const result = [];
+		const itvByDay = {};
+		
+		// List hours -> interval day by day
+		intervalConditionalObject.forEach(itv => {
+			Object.entries(itv.applies).forEach(e => {
+				const [ day, hours ] = e;
+				if(!itvByDay[day]) { itvByDay[day] = {}; }
+				hours.forEach(h => {
+					itvByDay[day][h] = itv.interval;
+				});
+			});
+		});
+		
+		// Merge days
+		Object.entries(itvByDay).forEach(e => {
+			const [ day, intervals ] = e;
+			
+			if(Object.keys(intervals).length > 0) {
+				// Look for identical days
+				const ident = result.filter(r => deepEqual(r.intervals, intervals));
+				
+				if(ident.length === 1) {
+					ident[0].days.push(day);
+				}
+				else {
+					result.push({ days: [ day ], intervals: intervals });
+				}
+			}
+		});
+		
+		return result;
 	}
 	
 	/**
