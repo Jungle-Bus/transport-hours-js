@@ -53,6 +53,7 @@
     "pre-commit": "^1.2.2"
   },
   "dependencies": {
+    "array-flat-polyfill": "^1.0.1",
     "fast-deep-equal": "^2.0.1"
   }
 }

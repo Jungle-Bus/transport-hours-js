@@ -47,7 +47,7 @@ Parsed tags are : interval=\*, opening_hours=\* and interval:conditional=\*
 
 -   `tags` **[Object][16]** The list of tags from OpenStreetMap
 
-Returns **[Object][16]** The hours of the line, with structure { opens: [opening hours table][3], defaultInterval: minutes (int), otherIntervals: [interval rules object][7], otherIntervalsByDays: list of interval by days (structure: { days: string\[], intervals: { hoursRange: interval } }) }. Each field can also have value "unset" if no tag is defined, or "invalid" if tag can't be read.
+Returns **[Object][16]** The hours of the line, with structure { opens: [opening hours table][3], defaultInterval: minutes (int), otherIntervals: [interval rules object][7], otherIntervalsByDays: list of interval by days (structure: { days: string\[], intervals: { hoursRange: interval } }), allComputedIntervals: same as otherIntervalsByDays but taking also default interval and opening_hours }. Each field can also have value "unset" if no tag is defined, or "invalid" if tag can't be read.
 
 ### intervalConditionalStringToObject
 
