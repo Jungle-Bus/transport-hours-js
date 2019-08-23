@@ -1,18 +1,18 @@
 /**
- * OpeningHours handles parsing of {@link https://wiki.openstreetmap.org/wiki/Key:opening_hours|opening_hours=*} tag.
+ * OpeningHoursParser handles parsing of {@link https://wiki.openstreetmap.org/wiki/Key:opening_hours|opening_hours=*} tag.
  * It only supports basic version of the tag, as we don't need full implementation for public transport hours.
  * Based on ubahnverleih implementation, edited to use vanilla JS syntax
  * @see {@link https://github.com/ubahnverleih/simple-opening-hours|Original repository}
  */
-class OpeningHours {
+class OpeningHoursParser {
 	/**
-	 * Creates the OpeningHours Object with OSM opening_hours string
+	 * Creates the OpeningHoursParser Object with OSM opening_hours string
 	 * @param {string} value The opening_hours=* value
 	 */
 	constructor(value) {
 		this.openingHours = {};
 		this._parse(value);
-		
+
 		// Check if opening hours is empty (invalid parsing)
 		if(Object.values(this.openingHours).filter(oh => oh.length === 0).length === Object.keys(this.openingHours).length) {
 			throw new Error("Can't parse opening_hours : "+value);
@@ -126,7 +126,7 @@ class OpeningHours {
 				tempData[day] = times
 			}
 		});
-		
+
 		if(days.length > 0 && times.length === 0) {
 			days.forEach((day) => {
 				tempData[day] = ["00:00-24:00"];
@@ -158,7 +158,7 @@ class OpeningHours {
 
 		return days
 	}
-	
+
 	/**
 	 * @private
 	 */
@@ -286,4 +286,4 @@ class OpeningHours {
 	}
 }
 
-module.exports = OpeningHours;
+module.exports = OpeningHoursParser;

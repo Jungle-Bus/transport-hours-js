@@ -10,7 +10,7 @@
     "doc:check": "documentation lint ./src/*.js",
     "build": "npm run assets && npm run build:js",
     "assets": "mkdir -p ./dist && cp ./src/index.html ./dist/",
-    "build:js": "browserify ./src/TransportHours.js -o ./dist/TransportHours.js -s TransportHours -t [ babelify --presets [ @babel/preset-env minify ] --no-comments ]",
+    "build:js": "browserify ./src/TransportHours.js -o ./dist/TransportHours.js -s TransportHours -t [ babelify --presets [ @babel/preset-env ] --no-comments ]",
     "build:values": "wget \"http://overpass-api.de/api/interpreter?data=%5Bout%3Acsv%28%22interval%3Aconditional%22%29%5D%5Btimeout%3A25%5D%3B%0A%28%0A%20%20relation%5B%22interval%3Aconditional%22%5D%3B%0A%29%3B%0Aout%20body%3B\" -O res/overpass_values.txt ; cat res/overpass_values.txt | tail -n +2 | sort | uniq | sed 's/^\"//g;s/\"$//g' > res/interval_conditional.txt",
     "build:embedgit": "git add -f ./API.md ./dist/",
     "clean": "rm -rf ./dist"

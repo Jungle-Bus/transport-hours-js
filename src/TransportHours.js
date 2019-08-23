@@ -1,5 +1,6 @@
 require("array-flat-polyfill");
-const OpeningHours = require("./OpeningHours");
+const OpeningHoursParser = require("./OpeningHoursParser");
+const OpeningHoursBuilder = require("./OpeningHoursBuilder");
 const deepEqual = require("fast-deep-equal");
 
 const TAG_UNSET = "unset";
@@ -20,7 +21,7 @@ class TransportHours {
 		// Read opening_hours
 		let opens;
 		try {
-			opens = tags.opening_hours ? (new OpeningHours(tags.opening_hours)).getTable() : TAG_UNSET;
+			opens = tags.opening_hours ? (new OpeningHoursParser(tags.opening_hours)).getTable() : TAG_UNSET;
 		}
 		catch(e) {
 			opens = TAG_INVALID;
@@ -66,6 +67,101 @@ class TransportHours {
 	}
 
 	/**
+	 * Converts a JS array of periods (object like { days: [ "mo", "tu" ], intervals: { "08:00-15:00": 15 }) into a set of OpenStreetMap tags (opening_hours, interval and interval:conditional).
+	 * @param {Object[]} allIntervals List of periods to parse (same format as allComputedIntervals from tagsToHoursObject function)
+	 * @return {Object} Parsed tags
+	 * @throws Error If input data is invalid
+	 */
+	intervalsObjectToTags(allIntervals) {
+		const result = {};
+
+		// Create opening_hours
+		const periodsOH = allIntervals.map(p => ({ days: p.days, hours: Object.keys(p.intervals) }));
+		result.opening_hours = (new OpeningHoursBuilder(periodsOH)).getValue();
+
+		// Find most frequent interval
+		const intervalDuration = {};
+		allIntervals.forEach(p => {
+			const nbDays = p.days.length;
+
+			Object.entries(p.intervals).forEach(e => {
+				const [ timerange, interval ] = e;
+				const duration = this._timerangeDuration(timerange);
+
+				if(intervalDuration[interval]) {
+					intervalDuration[interval] += duration;
+				}
+				else {
+					intervalDuration[interval] = duration;
+				}
+			});
+		});
+
+		const nbIntervals = Object.keys(intervalDuration).length;
+
+		// No interval = corrupt data
+		if(nbIntervals === 0) {
+			throw new Error("No interval is defined in given periods");
+		}
+		// 1 interval = no conditional
+		else if(nbIntervals === 1) {
+			result.interval = Object.keys(intervalDuration)[0].toString();
+		}
+		// 2+ intervals = conditionals
+		else {
+			// Choose most frequent interval as default
+			let defaultInterval, maxDuration;
+			Object.entries(intervalDuration).forEach(e => {
+				if(!defaultInterval || e[1] > maxDuration) {
+					defaultInterval = e[0];
+					maxDuration = e[1];
+				}
+			});
+
+			result.interval = defaultInterval.toString();
+
+			// Find periods associated to each interval
+			const intervalPeriods = [];
+			Object.entries(intervalDuration)
+			.sort((a,b) => b[1] - a[1])
+			.filter(e => e[0] !== defaultInterval)
+			.forEach(e => {
+				const interval = parseInt(e[0]);
+				const applies = allIntervals
+					.map(p => {
+						const filtered = { days: p.days };
+						filtered.hours = Object.entries(p.intervals).filter(pe => pe[1] === interval).map(pe => pe[0]);
+						return filtered;
+					})
+					.filter(p => p.hours.length > 0);
+
+				if(applies.length > 0) {
+					intervalPeriods.push({
+						interval: interval,
+						applies: applies
+					});
+				}
+			});
+
+			// Converts into OSM syntax
+			result["interval:conditional"] = intervalPeriods.map(ip => (
+				ip.interval + " @ ("+ (new OpeningHoursBuilder(ip.applies)).getValue() +")"
+			)).join("; ");
+		}
+
+		return result;
+	}
+
+	/**
+	 * Finds duration of a given timerange (format HH:MM-HH:MM)
+	 * @private
+	 */
+	_timerangeDuration(timerange) {
+		const [ startMin, endMin ] = timerange.split("-").map(t => OpeningHoursBuilder.TimeToMinutes(t));
+		return startMin <= endMin ? endMin - startMin : 24*60 - startMin + endMin;
+	}
+
+	/**
 	 * Reads all information, and generates a merged calendar of all intervals.
 	 * @private
 	 */
@@ -80,7 +176,7 @@ class TransportHours {
 			// Check opening hours, if missing we default to 24/7
 			let myOH = openingHours;
 			if(openingHours === TAG_UNSET) {
-				myOH = (new OpeningHours("24/7")).getTable();
+				myOH = (new OpeningHoursParser("24/7")).getTable();
 			}
 
 			// Copy existing intervals (split day by day)
@@ -296,7 +392,7 @@ class TransportHours {
 			parts[1] = parts[1].substring(1, parts[1].length-1);
 		}
 
-		result.applies = (new OpeningHours(parts[1])).getTable();
+		result.applies = (new OpeningHoursParser(parts[1])).getTable();
 
 		return result;
 	}

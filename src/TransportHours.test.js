@@ -176,6 +176,69 @@ describe("TransportHours", () => {
 		});
 	});
 
+	describe("intervalsObjectToTags", () => {
+		it("works with constant interval and single day", () => {
+			const intervals = [
+				{ days: [ "mo" ], intervals: { "03:00-22:00": 10 } }
+			];
+
+			const expected = {
+				"opening_hours": "Mo 03:00-22:00",
+				"interval": "10"
+			};
+
+			const result = th.intervalsObjectToTags(intervals);
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("works with two intervals and single day", () => {
+			const intervals = [
+				{ days: [ "mo" ], intervals: { "05:00-07:00": 30, "07:00-10:00": 15, "10:00-16:00": 30, "16:00-19:00": 15, "19:00-23:00": 30 } }
+			];
+
+			const expected = {
+				"opening_hours": "Mo 05:00-23:00",
+				"interval": "30",
+				"interval:conditional": "15 @ (Mo 07:00-10:00,16:00-19:00)"
+			};
+
+			const result = th.intervalsObjectToTags(intervals);
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("works two intervals and several days", () => {
+			const intervals = [
+				{ days: [ "mo", "tu" ], intervals: { "05:00-07:00": 30, "07:00-10:00": 15, "10:00-16:00": 30, "16:00-19:00": 15, "19:00-23:00": 30 } },
+				{ days: [ "we" ], intervals: { "04:00-06:30": 30, "06:30-11:00": 15, "11:00-16:15": 30, "16:15-19:00": 15, "19:00-23:00": 30 } }
+			];
+
+			const expected = {
+				"opening_hours": "Mo,Tu 05:00-23:00; We 04:00-23:00",
+				"interval": "30",
+				"interval:conditional": "15 @ (Mo,Tu 07:00-10:00,16:00-19:00; We 06:30-11:00,16:15-19:00)"
+			};
+
+			const result = th.intervalsObjectToTags(intervals);
+			expect(result).toStrictEqual(expected);
+		});
+	});
+
+	describe("_timerangeDuration", () => {
+		it("works with basic timerange", () => {
+			const timerange = "10:00-11:25";
+			const expected = 85;
+			const result = th._timerangeDuration(timerange);
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("handles timeranges going after midnight", () => {
+			const timerange = "23:30-01:10";
+			const expected = 100;
+			const result = th._timerangeDuration(timerange);
+			expect(result).toStrictEqual(expected);
+		});
+	});
+
 	describe("intervalConditionalStringToObject", () => {
 		it("handles standard tag", () => {
 			const intervalCond = "00:05 @ (Mo-Fr 07:00-10:00); 00:10 @ (Mo-Fr 16:30-19:00); 00:30 @ (Mo-Su 22:00-05:00)";

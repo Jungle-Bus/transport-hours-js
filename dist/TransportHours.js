@@ -59,10 +59,902 @@ module.exports = function equal(a, b) {
 };
 
 },{}],3:[function(require,module,exports){
-"use strict";function _classCallCheck(a,b){if(!(a instanceof b))throw new TypeError("Cannot call a class as a function")}function _defineProperties(a,b){for(var c,d=0;d<b.length;d++)c=b[d],c.enumerable=c.enumerable||!1,c.configurable=!0,"value"in c&&(c.writable=!0),Object.defineProperty(a,c.key,c)}function _createClass(a,b,c){return b&&_defineProperties(a.prototype,b),c&&_defineProperties(a,c),a}var OpeningHours=function(){function a(b){if(_classCallCheck(this,a),this.openingHours={},this._parse(b),Object.values(this.openingHours).filter(function(a){return 0===a.length}).length===Object.keys(this.openingHours).length)throw new Error("Can't parse opening_hours : "+b)}return _createClass(a,[{key:"getTable",value:function getTable(){return this.openingHours}},{key:"_parse",value:function _parse(a){var b=this;this._initOpeningHoursObj(),a=this._simplify(a);var c=this._splitHard(a);c.forEach(function(a){b._parseHardPart(a)})}},{key:"_simplify",value:function _simplify(a){return"24/7"==a&&(a="mo-su 00:00-24:00; ph 00:00-24:00"),a=a.toLocaleLowerCase(),a=a.trim(),a=a.replace(/ +(?= )/g,""),a=a.replace(" -","-"),a=a.replace("- ","-"),a=a.replace(" :",":"),a=a.replace(": ",":"),a=a.replace(" ,",","),a=a.replace(", ",","),a=a.replace(" ;",";"),a=a.replace("; ",";"),a}},{key:"_splitHard",value:function _splitHard(a){return a.split(";")}},{key:"_parseHardPart",value:function _parseHardPart(a){var b=this;"24/7"==a&&(a="mo-su 00:00-24:00");var c=a.split(/\ |\,/),d={},e=[],f=[];for(var g in c.forEach(function(a,c){b._checkDay(a)&&(0===f.length?e=e.concat(b._parseDays(a)):(e.forEach(function(a){d[a]=d[a]?d[a].concat(f):f}),e=b._parseDays(a),f=[])),b._checkTime(a)&&(0===c&&0===e.length&&(e=b._parseDays("Mo-Su,PH")),"off"==a?f=[]:f.push(b._cleanTime(a)))}),e.forEach(function(a){d[a]=d[a]?d[a].concat(f):f}),0<e.length&&0===f.length&&e.forEach(function(a){d[a]=["00:00-24:00"]}),d)this.openingHours[g]=d[g]}},{key:"_parseDays",value:function _parseDays(a){var b=this;a=a.toLowerCase();var c=[],d=a.split(",");return d.forEach(function(a){var d=(a.match(/\-/g)||[]).length;0==d?c.push(a):c=c.concat(b._calcDayRange(a))}),c}},{key:"_cleanTime",value:function _cleanTime(a){return a.match(/^[0-9]:[0-9]{2}/)&&(a="0"+a),a.match(/^[0-9]{2}:[0-9]{2}\-[0-9]:[0-9]{2}/)&&(a=a.substring(0,6)+"0"+a.substring(6)),a}},{key:"_initOpeningHoursObj",value:function _initOpeningHoursObj(){this.openingHours={su:[],mo:[],tu:[],we:[],th:[],fr:[],sa:[],ph:[]}}},{key:"_calcDayRange",value:function _calcDayRange(a){var b={su:0,mo:1,tu:2,we:3,th:4,fr:5,sa:6},c=a.split("-"),d=b[c[0]],e=b[c[1]],f=this._calcRange(d,e,6),g=[];return f.forEach(function(a){for(var c in b)b[c]==a&&g.push(c)}),g}},{key:"_calcRange",value:function _calcRange(a,b,c){if(a==b)return[a];for(var d=[a],e=a;e<(a<b?b:c);)e++,d.push(e);return a>b&&(d=d.concat(this._calcRange(0,b,c))),d}},{key:"_checkTime",value:function _checkTime(a){return!!a.match(/[0-9]{1,2}:[0-9]{2}\+/)||!!a.match(/[0-9]{1,2}:[0-9]{2}\-[0-9]{1,2}:[0-9]{2}/)||!!a.match(/off/)}},{key:"_checkDay",value:function _checkDay(a){var b=["mo","tu","we","th","fr","sa","su","ph"];if(a.match(/\-/g)){var c=a.split("-");if(-1!==b.indexOf(c[0])&&-1!==b.indexOf(c[1]))return!0}else if(-1!==b.indexOf(a))return!0;return!1}}]),a}();module.exports=OpeningHours;
+"use strict";
+
+function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread(); }
+
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance"); }
+
+function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter); }
+
+function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var DAYS = ["mo", "tu", "we", "th", "fr", "sa", "su", "ph"];
+var DAYS_OH = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su", "PH"];
+var HOURS_RGX = /^\d{2}\:\d{2}\-\d{2}\:\d{2}$/;
+
+var OpeningHoursBuilder = function () {
+  function OpeningHoursBuilder(periods) {
+    _classCallCheck(this, OpeningHoursBuilder);
+
+    if (!periods || !Array.isArray(periods) || periods.filter(function (p) {
+      return !OpeningHoursBuilder.IsPeriodValid(p);
+    }).length > 0) {
+      throw new Error("The given periods are not valid");
+    }
+
+    var ohHours = periods.map(function (p) {
+      return {
+        days: p.days,
+        hours: OpeningHoursBuilder.HoursToOH(p.hours)
+      };
+    });
+    var ohHoursDays = {};
+    ohHours.forEach(function (p) {
+      if (ohHoursDays[p.hours]) {
+        ohHoursDays[p.hours] = ohHoursDays[p.hours].concat(p.days);
+      } else {
+        ohHoursDays[p.hours] = p.days;
+      }
+    });
+    var ohPeriods = Object.entries(ohHoursDays).map(function (e) {
+      return [OpeningHoursBuilder.DaysToOH(e[1]), e[0]];
+    });
+    this._ohValue = ohPeriods.map(function (p) {
+      return p.join(" ").trim();
+    }).join("; ");
+
+    if (this._ohValue === "00:00-24:00") {
+      this._ohValue = "24/7";
+    }
+  }
+
+  _createClass(OpeningHoursBuilder, [{
+    key: "getValue",
+    value: function getValue() {
+      return this._ohValue;
+    }
+  }], [{
+    key: "IsPeriodValid",
+    value: function IsPeriodValid(p) {
+      return p && p.days && p.days.length > 0 && p.days.filter(function (d) {
+        return !d || typeof d !== "string" || !DAYS.includes(d);
+      }).length === 0 && p.hours && p.hours.length > 0 && p.hours.filter(function (h) {
+        return !h || typeof h !== "string" || !HOURS_RGX.test(h);
+      }).length === 0;
+    }
+  }, {
+    key: "DaysToOH",
+    value: function DaysToOH(days) {
+      var daysId = _toConsumableArray(new Set(days.map(function (d) {
+        return DAYS.indexOf(d);
+      }))).sort();
+
+      for (var id = 1; id < daysId.length; id++) {
+        var currDay = daysId[id];
+        var prevDay = daysId[id - 1];
+
+        if (Array.isArray(prevDay)) {
+          prevDay = prevDay[1];
+        }
+
+        if (currDay === prevDay + 1 && currDay !== DAYS.indexOf("ph")) {
+          if (Array.isArray(daysId[id - 1])) {
+            daysId[id - 1][1] = currDay;
+          } else {
+            daysId[id - 1] = [prevDay, currDay];
+          }
+
+          daysId.splice(id, 1);
+          id--;
+        }
+      }
+
+      var dayPart = daysId.map(function (dId) {
+        return Array.isArray(dId) ? dId.map(function (d) {
+          return DAYS_OH[d];
+        }).join(dId[1] - dId[0] > 1 ? "-" : ",") : DAYS_OH[dId];
+      }).join(",");
+
+      if (dayPart === "Mo-Su") {
+        dayPart = "";
+      }
+
+      return dayPart;
+    }
+  }, {
+    key: "HoursToOH",
+    value: function HoursToOH(hours) {
+      var minutesRanges = hours.map(function (h) {
+        return h.split("-").map(function (hp) {
+          return OpeningHoursBuilder.TimeToMinutes(hp);
+        });
+      }).sort(function (a, b) {
+        return a[0] - b[0];
+      });
+
+      for (var id = 1; id < minutesRanges.length; id++) {
+        var currRange = minutesRanges[id];
+        var prevRange = minutesRanges[id - 1];
+
+        if (prevRange[1] >= currRange[0]) {
+          if (prevRange[1] < currRange[1] || currRange[0] > currRange[1]) {
+            prevRange[1] = currRange[1];
+          }
+
+          minutesRanges.splice(id, 1);
+          id--;
+        }
+      }
+
+      var hourPart = minutesRanges.map(function (mr) {
+        return mr.map(function (mrp) {
+          return OpeningHoursBuilder.MinutesToTime(mrp);
+        }).join("-");
+      }).join(",");
+      return hourPart;
+    }
+  }, {
+    key: "TimeToMinutes",
+    value: function TimeToMinutes(time) {
+      var parts = time.split(":").map(function (p) {
+        return parseInt(p);
+      });
+      return parts[0] * 60 + parts[1];
+    }
+  }, {
+    key: "MinutesToTime",
+    value: function MinutesToTime(minutes) {
+      var twoDigits = function twoDigits(v) {
+        return v < 10 ? "0" + v.toString() : v.toString();
+      };
+
+      return twoDigits(Math.floor(minutes / 60).toFixed(0)) + ":" + twoDigits(minutes % 60);
+    }
+  }]);
+
+  return OpeningHoursBuilder;
+}();
+
+module.exports = OpeningHoursBuilder;
 
 },{}],4:[function(require,module,exports){
-"use strict";function _slicedToArray(a,b){return _arrayWithHoles(a)||_iterableToArrayLimit(a,b)||_nonIterableRest()}function _nonIterableRest(){throw new TypeError("Invalid attempt to destructure non-iterable instance")}function _iterableToArrayLimit(a,b){var c=[],d=!0,e=!1,f=void 0;try{for(var g,h=a[Symbol.iterator]();!(d=(g=h.next()).done)&&(c.push(g.value),!(b&&c.length===b));d=!0);}catch(a){e=!0,f=a}finally{try{d||null==h["return"]||h["return"]()}finally{if(e)throw f}}return c}function _arrayWithHoles(a){if(Array.isArray(a))return a}function _toConsumableArray(a){return _arrayWithoutHoles(a)||_iterableToArray(a)||_nonIterableSpread()}function _nonIterableSpread(){throw new TypeError("Invalid attempt to spread non-iterable instance")}function _iterableToArray(a){if(Symbol.iterator in Object(a)||"[object Arguments]"===Object.prototype.toString.call(a))return Array.from(a)}function _arrayWithoutHoles(a){if(Array.isArray(a)){for(var b=0,c=Array(a.length);b<a.length;b++)c[b]=a[b];return c}}function _classCallCheck(a,b){if(!(a instanceof b))throw new TypeError("Cannot call a class as a function")}function _defineProperties(a,b){for(var c,d=0;d<b.length;d++)c=b[d],c.enumerable=c.enumerable||!1,c.configurable=!0,"value"in c&&(c.writable=!0),Object.defineProperty(a,c.key,c)}function _createClass(a,b,c){return b&&_defineProperties(a.prototype,b),c&&_defineProperties(a,c),a}require("array-flat-polyfill");var OpeningHours=require("./OpeningHours"),deepEqual=require("fast-deep-equal"),TAG_UNSET="unset",TAG_INVALID="invalid",TransportHours=function(){function a(){_classCallCheck(this,a)}return _createClass(a,[{key:"tagsToHoursObject",value:function tagsToHoursObject(a){var b;try{b=a.opening_hours?new OpeningHours(a.opening_hours).getTable():TAG_UNSET}catch(a){b=TAG_INVALID}var c;try{c=a.interval?this.intervalStringToMinutes(a.interval):TAG_UNSET}catch(a){c=TAG_INVALID}var d,f;try{d=a["interval:conditional"]?this.intervalConditionalStringToObject(a["interval:conditional"]):TAG_UNSET,f=d===TAG_UNSET?TAG_UNSET:this._intervalConditionObjectToIntervalByDays(d)}catch(a){d=TAG_INVALID,f=TAG_INVALID}var g;try{g=this._computeAllIntervals(b,c,f)}catch(a){g=TAG_INVALID}return{opens:b,defaultInterval:c,otherIntervals:d,otherIntervalsByDays:f,allComputedIntervals:g}}},{key:"_computeAllIntervals",value:function _computeAllIntervals(a,b,c){var d=this;if(a===TAG_INVALID||b===TAG_INVALID||b===TAG_UNSET||c===TAG_INVALID)return(a===TAG_INVALID||b===TAG_INVALID)&&c===TAG_UNSET?TAG_INVALID:c;var e=c===TAG_UNSET?[]:c,f=a;a===TAG_UNSET&&(f=new OpeningHours("24/7").getTable());var g=[];e.forEach(function(a){a.days.forEach(function(b){g.push({days:[b],intervals:a.intervals})})}),g=g.map(function(a){var c=f[a.days[0]];return a.intervals=d._mergeIntervalsSingleDay(c,b,a.intervals),a});var h=_toConsumableArray(new Set(e.map(function(a){return a.days}).flat())),k=Object.keys(f).filter(function(a){return!h.includes(a)}),l={};k.forEach(function(a){l[a]=f[a]}),g=g.concat(this._intervalConditionObjectToIntervalByDays([{interval:b,applies:l}]));for(var n=1;n<g.length;n++)for(var i=0;i<n;i++)if(deepEqual(g[n].intervals,g[i].intervals)){g[i].days=g[i].days.concat(g[n].days),g.splice(n,1),n--;break}var m=["mo","tu","we","th","fr","sa","su","ph"];return g.forEach(function(a){return a.days.sort(function(c,a){return m.indexOf(c)-m.indexOf(a)})}),g.sort(function(c,a){return m.indexOf(c.days[0])-m.indexOf(a.days[0])}),g}},{key:"_mergeIntervalsSingleDay",value:function _mergeIntervalsSingleDay(a,b,c){var d=function(a){return a.map(function(a){return a.split("-")})},e=d(a),f=d(Object.keys(c)),g=f.filter(function(a){for(var b,c=!1,d=0;d<e.length;d++)if(b=e[d],a[0]>=b[0]&&a[1]<=b[1]){c=!0;break}return!c});if(0<g.length)throw new Error("Conditional intervals are not contained in opening hours");var h=[];e.forEach(function(a){var b=[];(0===f.length||a[0]!==f[0][0])&&b.push(a[0]),f.forEach(function(c){c[0]>a[0]&&c[0]<a[1]&&b.push(c[0]),c[1]>a[0]&&c[1]<a[1]&&b.push(c[1])}),(0===f.length||a[1]!==f[f.length-1][1])&&b.push(a[1]),h=h.concat(b.map(function(a,c){return 0==c%2?null:b[c-1]+"-"+a}).filter(function(a){return null!==a}))});var i={};return h.forEach(function(a){i[a]=b}),i=Object.assign(i,c),i}},{key:"intervalConditionalStringToObject",value:function intervalConditionalStringToObject(a){var b=this;return this._splitMultipleIntervalConditionalString(a).map(function(a){return b._readSingleIntervalConditionalString(a)})}},{key:"_intervalConditionObjectToIntervalByDays",value:function _intervalConditionObjectToIntervalByDays(a){var b=[],c={};return a.forEach(function(a){Object.entries(a.applies).forEach(function(b){var d=_slicedToArray(b,2),e=d[0],f=d[1];c[e]||(c[e]={}),f.forEach(function(b){c[e][b]=a.interval})})}),Object.entries(c).forEach(function(a){var c=_slicedToArray(a,2),d=c[0],e=c[1];if(0<Object.keys(e).length){var f=b.filter(function(a){return deepEqual(a.intervals,e)});1===f.length?f[0].days.push(d):b.push({days:[d],intervals:e})}}),b}},{key:"_splitMultipleIntervalConditionalString",value:function _splitMultipleIntervalConditionalString(a){if(a.match(/\(.*\)/)){for(var b=a.split("").map(function(a,b){return";"===a?b:null}).filter(function(a){return null!==a}),c=0,d=[];0<b.length;){var e=b[0],f=a.substring(c,e);(f.match(/^[^\(\)]$/)||f.match(/\(.*\)/))&&(d.push(f),c=e+1),b.shift()}return d.push(a.substring(c)),d.map(function(a){return a.trim()}).filter(function(a){return 0<a.length})}return a.split(";").map(function(a){return a.trim()}).filter(function(a){return 0<a.length})}},{key:"_readSingleIntervalConditionalString",value:function _readSingleIntervalConditionalString(a){var b={},c=a.split("@").map(function(a){return a.trim()});if(2!==c.length)throw new Error("Conditional interval can't be parsed : "+a);return b.interval=this.intervalStringToMinutes(c[0]),c[1].match(/^\(.*\)$/)&&(c[1]=c[1].substring(1,c[1].length-1)),b.applies=new OpeningHours(c[1]).getTable(),b}},{key:"intervalStringToMinutes",value:function intervalStringToMinutes(a){if(a=a.trim(),/^\d{1,2}:\d{2}:\d{2}$/.test(a)){var b=a.split(":").map(function(a){return parseInt(a)});return 60*b[0]+b[1]+b[2]/60}if(/^\d{1,2}:\d{2}$/.test(a)){var c=a.split(":").map(function(a){return parseInt(a)});return 60*c[0]+c[1]}if(/^\d+$/.test(a))return parseInt(a);throw new Error("Interval value can't be parsed : "+a)}},{key:"minutesToIntervalString",value:function minutesToIntervalString(a){var b=Math.round,c=Math.floor;if("number"!=typeof a)throw new Error("Parameter minutes is not a number");var d=c(a/60),e=c(a%60),f=b(60*(a-60*d-e));return[d,e,f].map(function(a){return a.toString().padStart(2,"0")}).join(":")}}]),a}();module.exports=TransportHours;
+"use strict";
 
-},{"./OpeningHours":3,"array-flat-polyfill":1,"fast-deep-equal":2}]},{},[4])(4)
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+var OpeningHoursParser = function () {
+  function OpeningHoursParser(value) {
+    _classCallCheck(this, OpeningHoursParser);
+
+    this.openingHours = {};
+
+    this._parse(value);
+
+    if (Object.values(this.openingHours).filter(function (oh) {
+      return oh.length === 0;
+    }).length === Object.keys(this.openingHours).length) {
+      throw new Error("Can't parse opening_hours : " + value);
+    }
+  }
+
+  _createClass(OpeningHoursParser, [{
+    key: "getTable",
+    value: function getTable() {
+      return this.openingHours;
+    }
+  }, {
+    key: "_parse",
+    value: function _parse(inp) {
+      var _this = this;
+
+      this._initOpeningHoursObj();
+
+      inp = this._simplify(inp);
+
+      var parts = this._splitHard(inp);
+
+      parts.forEach(function (part) {
+        _this._parseHardPart(part);
+      });
+    }
+  }, {
+    key: "_simplify",
+    value: function _simplify(input) {
+      if (input == "24/7") {
+        input = "mo-su 00:00-24:00; ph 00:00-24:00";
+      }
+
+      input = input.toLocaleLowerCase();
+      input = input.trim();
+      input = input.replace(/ +(?= )/g, '');
+      input = input.replace(' -', '-');
+      input = input.replace('- ', '-');
+      input = input.replace(' :', ':');
+      input = input.replace(': ', ':');
+      input = input.replace(' ,', ',');
+      input = input.replace(', ', ',');
+      input = input.replace(' ;', ';');
+      input = input.replace('; ', ';');
+      return input;
+    }
+  }, {
+    key: "_splitHard",
+    value: function _splitHard(inp) {
+      return inp.split(';');
+    }
+  }, {
+    key: "_parseHardPart",
+    value: function _parseHardPart(part) {
+      var _this2 = this;
+
+      if (part == "24/7") {
+        part = "mo-su 00:00-24:00";
+      }
+
+      var segments = part.split(/\ |\,/);
+      var tempData = {};
+      var days = [];
+      var times = [];
+      segments.forEach(function (segment, i) {
+        if (_this2._checkDay(segment)) {
+          if (times.length === 0) {
+            days = days.concat(_this2._parseDays(segment));
+          } else {
+            days.forEach(function (day) {
+              if (tempData[day]) {
+                tempData[day] = tempData[day].concat(times);
+              } else {
+                tempData[day] = times;
+              }
+            });
+            days = _this2._parseDays(segment);
+            times = [];
+          }
+        }
+
+        if (_this2._checkTime(segment)) {
+          if (i === 0 && days.length === 0) {
+            days = _this2._parseDays("Mo-Su,PH");
+          }
+
+          if (segment == "off") {
+            times = [];
+          } else {
+            times.push(_this2._cleanTime(segment));
+          }
+        }
+      });
+      days.forEach(function (day) {
+        if (tempData[day]) {
+          tempData[day] = tempData[day].concat(times);
+        } else {
+          tempData[day] = times;
+        }
+      });
+
+      if (days.length > 0 && times.length === 0) {
+        days.forEach(function (day) {
+          tempData[day] = ["00:00-24:00"];
+        });
+      }
+
+      for (var key in tempData) {
+        this.openingHours[key] = tempData[key];
+      }
+    }
+  }, {
+    key: "_parseDays",
+    value: function _parseDays(part) {
+      var _this3 = this;
+
+      part = part.toLowerCase();
+      var days = [];
+      var softparts = part.split(',');
+      softparts.forEach(function (part) {
+        var rangecount = (part.match(/\-/g) || []).length;
+
+        if (rangecount == 0) {
+          days.push(part);
+        } else {
+          days = days.concat(_this3._calcDayRange(part));
+        }
+      });
+      return days;
+    }
+  }, {
+    key: "_cleanTime",
+    value: function _cleanTime(time) {
+      if (time.match(/^[0-9]:[0-9]{2}/)) {
+        time = "0" + time;
+      }
+
+      if (time.match(/^[0-9]{2}:[0-9]{2}\-[0-9]:[0-9]{2}/)) {
+        time = time.substring(0, 6) + "0" + time.substring(6);
+      }
+
+      return time;
+    }
+  }, {
+    key: "_initOpeningHoursObj",
+    value: function _initOpeningHoursObj() {
+      this.openingHours = {
+        su: [],
+        mo: [],
+        tu: [],
+        we: [],
+        th: [],
+        fr: [],
+        sa: [],
+        ph: []
+      };
+    }
+  }, {
+    key: "_calcDayRange",
+    value: function _calcDayRange(range) {
+      var def = {
+        su: 0,
+        mo: 1,
+        tu: 2,
+        we: 3,
+        th: 4,
+        fr: 5,
+        sa: 6
+      };
+      var rangeElements = range.split('-');
+      var dayStart = def[rangeElements[0]];
+      var dayEnd = def[rangeElements[1]];
+
+      var numberRange = this._calcRange(dayStart, dayEnd, 6);
+
+      var outRange = [];
+      numberRange.forEach(function (n) {
+        for (var key in def) {
+          if (def[key] == n) {
+            outRange.push(key);
+          }
+        }
+      });
+      return outRange;
+    }
+  }, {
+    key: "_calcRange",
+    value: function _calcRange(min, max, maxval) {
+      if (min == max) {
+        return [min];
+      }
+
+      var range = [min];
+      var rangepoint = min;
+
+      while (rangepoint < (min < max ? max : maxval)) {
+        rangepoint++;
+        range.push(rangepoint);
+      }
+
+      if (min > max) {
+        range = range.concat(this._calcRange(0, max, maxval));
+      }
+
+      return range;
+    }
+  }, {
+    key: "_checkTime",
+    value: function _checkTime(inp) {
+      if (inp.match(/[0-9]{1,2}:[0-9]{2}\+/)) {
+        return true;
+      }
+
+      if (inp.match(/[0-9]{1,2}:[0-9]{2}\-[0-9]{1,2}:[0-9]{2}/)) {
+        return true;
+      }
+
+      if (inp.match(/off/)) {
+        return true;
+      }
+
+      return false;
+    }
+  }, {
+    key: "_checkDay",
+    value: function _checkDay(inp) {
+      var days = ["mo", "tu", "we", "th", "fr", "sa", "su", "ph"];
+
+      if (inp.match(/\-/g)) {
+        var rangelements = inp.split('-');
+
+        if (days.indexOf(rangelements[0]) !== -1 && days.indexOf(rangelements[1]) !== -1) {
+          return true;
+        }
+      } else {
+        if (days.indexOf(inp) !== -1) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+  }]);
+
+  return OpeningHoursParser;
+}();
+
+module.exports = OpeningHoursParser;
+
+},{}],5:[function(require,module,exports){
+"use strict";
+
+function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread(); }
+
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance"); }
+
+function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter); }
+
+function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
+
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest(); }
+
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance"); }
+
+function _iterableToArrayLimit(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
+
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+require("array-flat-polyfill");
+
+var OpeningHoursParser = require("./OpeningHoursParser");
+
+var OpeningHoursBuilder = require("./OpeningHoursBuilder");
+
+var deepEqual = require("fast-deep-equal");
+
+var TAG_UNSET = "unset";
+var TAG_INVALID = "invalid";
+
+var TransportHours = function () {
+  function TransportHours() {
+    _classCallCheck(this, TransportHours);
+  }
+
+  _createClass(TransportHours, [{
+    key: "tagsToHoursObject",
+    value: function tagsToHoursObject(tags) {
+      var opens;
+
+      try {
+        opens = tags.opening_hours ? new OpeningHoursParser(tags.opening_hours).getTable() : TAG_UNSET;
+      } catch (e) {
+        opens = TAG_INVALID;
+      }
+
+      var interval;
+
+      try {
+        interval = tags.interval ? this.intervalStringToMinutes(tags.interval) : TAG_UNSET;
+      } catch (e) {
+        interval = TAG_INVALID;
+      }
+
+      var intervalCond, intervalCondByDay;
+
+      try {
+        intervalCond = tags["interval:conditional"] ? this.intervalConditionalStringToObject(tags["interval:conditional"]) : TAG_UNSET;
+        intervalCondByDay = intervalCond !== TAG_UNSET ? this._intervalConditionObjectToIntervalByDays(intervalCond) : TAG_UNSET;
+      } catch (e) {
+        intervalCond = TAG_INVALID;
+        intervalCondByDay = TAG_INVALID;
+      }
+
+      var computedIntervals;
+
+      try {
+        computedIntervals = this._computeAllIntervals(opens, interval, intervalCondByDay);
+      } catch (e) {
+        computedIntervals = TAG_INVALID;
+      }
+
+      return {
+        opens: opens,
+        defaultInterval: interval,
+        otherIntervals: intervalCond,
+        otherIntervalsByDays: intervalCondByDay,
+        allComputedIntervals: computedIntervals
+      };
+    }
+  }, {
+    key: "intervalsObjectToTags",
+    value: function intervalsObjectToTags(allIntervals) {
+      var _this = this;
+
+      var result = {};
+      var periodsOH = allIntervals.map(function (p) {
+        return {
+          days: p.days,
+          hours: Object.keys(p.intervals)
+        };
+      });
+      result.opening_hours = new OpeningHoursBuilder(periodsOH).getValue();
+      var intervalDuration = {};
+      allIntervals.forEach(function (p) {
+        var nbDays = p.days.length;
+        Object.entries(p.intervals).forEach(function (e) {
+          var _e2 = _slicedToArray(e, 2),
+              timerange = _e2[0],
+              interval = _e2[1];
+
+          var duration = _this._timerangeDuration(timerange);
+
+          if (intervalDuration[interval]) {
+            intervalDuration[interval] += duration;
+          } else {
+            intervalDuration[interval] = duration;
+          }
+        });
+      });
+      var nbIntervals = Object.keys(intervalDuration).length;
+
+      if (nbIntervals === 0) {
+        throw new Error("No interval is defined in given periods");
+      } else if (nbIntervals === 1) {
+          result.interval = Object.keys(intervalDuration)[0].toString();
+        } else {
+            var defaultInterval, maxDuration;
+            Object.entries(intervalDuration).forEach(function (e) {
+              if (!defaultInterval || e[1] > maxDuration) {
+                defaultInterval = e[0];
+                maxDuration = e[1];
+              }
+            });
+            result.interval = defaultInterval.toString();
+            var intervalPeriods = [];
+            Object.entries(intervalDuration).sort(function (a, b) {
+              return b[1] - a[1];
+            }).filter(function (e) {
+              return e[0] !== defaultInterval;
+            }).forEach(function (e) {
+              var interval = parseInt(e[0]);
+              var applies = allIntervals.map(function (p) {
+                var filtered = {
+                  days: p.days
+                };
+                filtered.hours = Object.entries(p.intervals).filter(function (pe) {
+                  return pe[1] === interval;
+                }).map(function (pe) {
+                  return pe[0];
+                });
+                return filtered;
+              }).filter(function (p) {
+                return p.hours.length > 0;
+              });
+
+              if (applies.length > 0) {
+                intervalPeriods.push({
+                  interval: interval,
+                  applies: applies
+                });
+              }
+            });
+            result["interval:conditional"] = intervalPeriods.map(function (ip) {
+              return ip.interval + " @ (" + new OpeningHoursBuilder(ip.applies).getValue() + ")";
+            }).join("; ");
+          }
+
+      return result;
+    }
+  }, {
+    key: "_timerangeDuration",
+    value: function _timerangeDuration(timerange) {
+      var _timerange$split$map = timerange.split("-").map(function (t) {
+        return OpeningHoursBuilder.TimeToMinutes(t);
+      }),
+          _timerange$split$map2 = _slicedToArray(_timerange$split$map, 2),
+          startMin = _timerange$split$map2[0],
+          endMin = _timerange$split$map2[1];
+
+      return startMin <= endMin ? endMin - startMin : 24 * 60 - startMin + endMin;
+    }
+  }, {
+    key: "_computeAllIntervals",
+    value: function _computeAllIntervals(openingHours, interval, intervalCondByDay) {
+      var _this2 = this;
+
+      if (openingHours === TAG_INVALID || interval === TAG_INVALID || interval === TAG_UNSET || intervalCondByDay === TAG_INVALID) {
+        return (openingHours === TAG_INVALID || interval === TAG_INVALID) && intervalCondByDay === TAG_UNSET ? TAG_INVALID : intervalCondByDay;
+      } else {
+        var myIntervalCondByDay = intervalCondByDay === TAG_UNSET ? [] : intervalCondByDay;
+        var myOH = openingHours;
+
+        if (openingHours === TAG_UNSET) {
+          myOH = new OpeningHoursParser("24/7").getTable();
+        }
+
+        var result = [];
+        myIntervalCondByDay.forEach(function (di) {
+          di.days.forEach(function (d) {
+            result.push({
+              days: [d],
+              intervals: di.intervals
+            });
+          });
+        });
+        result = result.map(function (di) {
+          var ohDay = myOH[di.days[0]];
+          di.intervals = _this2._mergeIntervalsSingleDay(ohDay, interval, di.intervals);
+          return di;
+        });
+
+        var daysInCondInt = _toConsumableArray(new Set(myIntervalCondByDay.map(function (d) {
+          return d.days;
+        }).flat()));
+
+        var missingDays = Object.keys(myOH).filter(function (d) {
+          return !daysInCondInt.includes(d);
+        });
+        var missingDaysOH = {};
+        missingDays.forEach(function (day) {
+          missingDaysOH[day] = myOH[day];
+        });
+        result = result.concat(this._intervalConditionObjectToIntervalByDays([{
+          interval: interval,
+          applies: missingDaysOH
+        }]));
+
+        for (var i = 1; i < result.length; i++) {
+          for (var j = 0; j < i; j++) {
+            if (deepEqual(result[i].intervals, result[j].intervals)) {
+              result[j].days = result[j].days.concat(result[i].days);
+              result.splice(i, 1);
+              i--;
+              break;
+            }
+          }
+        }
+
+        var daysId = ["mo", "tu", "we", "th", "fr", "sa", "su", "ph"];
+        result.forEach(function (r) {
+          return r.days.sort(function (a, b) {
+            return daysId.indexOf(a) - daysId.indexOf(b);
+          });
+        });
+        result.sort(function (a, b) {
+          return daysId.indexOf(a.days[0]) - daysId.indexOf(b.days[0]);
+        });
+        return result;
+      }
+    }
+  }, {
+    key: "_mergeIntervalsSingleDay",
+    value: function _mergeIntervalsSingleDay(hours, interval, condIntervals) {
+      var hourRangeToArr = function hourRangeToArr(hr) {
+        return hr.map(function (h) {
+          return h.split("-");
+        });
+      };
+
+      var ohHours = hourRangeToArr(hours);
+      var condHours = hourRangeToArr(Object.keys(condIntervals));
+      var invalidCondHours = condHours.filter(function (ch) {
+        var foundOhHours = false;
+
+        for (var i = 0; i < ohHours.length; i++) {
+          var ohh = ohHours[i];
+
+          if (ch[0] >= ohh[0] && ch[1] <= ohh[1]) {
+            foundOhHours = true;
+            break;
+          }
+        }
+
+        return !foundOhHours;
+      });
+
+      if (invalidCondHours.length > 0) {
+        throw new Error("Conditional intervals are not contained in opening hours");
+      }
+
+      var ohHoursWithoutConds = [];
+      ohHours.forEach(function (ohh, i) {
+        var thisHours = [];
+
+        if (condHours.length === 0 || ohh[0] !== condHours[0][0]) {
+          thisHours.push(ohh[0]);
+        }
+
+        condHours.forEach(function (ch, j) {
+          if (ch[0] > ohh[0] && ch[0] < ohh[1]) {
+            thisHours.push(ch[0]);
+          }
+
+          if (ch[1] > ohh[0] && ch[1] < ohh[1]) {
+            thisHours.push(ch[1]);
+          }
+        });
+
+        if (condHours.length === 0 || ohh[1] !== condHours[condHours.length - 1][1]) {
+          thisHours.push(ohh[1]);
+        }
+
+        ohHoursWithoutConds = ohHoursWithoutConds.concat(thisHours.map(function (h, i) {
+          return i % 2 === 0 ? null : thisHours[i - 1] + "-" + h;
+        }).filter(function (h) {
+          return h !== null;
+        }));
+      });
+      var result = {};
+      ohHoursWithoutConds.forEach(function (h) {
+        result[h] = interval;
+      });
+      result = Object.assign(result, condIntervals);
+      return result;
+    }
+  }, {
+    key: "intervalConditionalStringToObject",
+    value: function intervalConditionalStringToObject(intervalConditional) {
+      var _this3 = this;
+
+      return this._splitMultipleIntervalConditionalString(intervalConditional).map(function (p) {
+        return _this3._readSingleIntervalConditionalString(p);
+      });
+    }
+  }, {
+    key: "_intervalConditionObjectToIntervalByDays",
+    value: function _intervalConditionObjectToIntervalByDays(intervalConditionalObject) {
+      var result = [];
+      var itvByDay = {};
+      intervalConditionalObject.forEach(function (itv) {
+        Object.entries(itv.applies).forEach(function (e) {
+          var _e3 = _slicedToArray(e, 2),
+              day = _e3[0],
+              hours = _e3[1];
+
+          if (!itvByDay[day]) {
+            itvByDay[day] = {};
+          }
+
+          hours.forEach(function (h) {
+            itvByDay[day][h] = itv.interval;
+          });
+        });
+      });
+      Object.entries(itvByDay).forEach(function (e) {
+        var _e4 = _slicedToArray(e, 2),
+            day = _e4[0],
+            intervals = _e4[1];
+
+        if (Object.keys(intervals).length > 0) {
+          var ident = result.filter(function (r) {
+            return deepEqual(r.intervals, intervals);
+          });
+
+          if (ident.length === 1) {
+            ident[0].days.push(day);
+          } else {
+            result.push({
+              days: [day],
+              intervals: intervals
+            });
+          }
+        }
+      });
+      return result;
+    }
+  }, {
+    key: "_splitMultipleIntervalConditionalString",
+    value: function _splitMultipleIntervalConditionalString(intervalConditional) {
+      if (intervalConditional.match(/\(.*\)/)) {
+        var semicolons = intervalConditional.split("").map(function (c, i) {
+          return c === ";" ? i : null;
+        }).filter(function (i) {
+          return i !== null;
+        });
+        var cursor = 0;
+        var stack = [];
+
+        while (semicolons.length > 0) {
+          var scid = semicolons[0];
+          var part = intervalConditional.substring(cursor, scid);
+
+          if (part.match(/^[^\(\)]$/) || part.match(/\(.*\)/)) {
+            stack.push(part);
+            cursor = scid + 1;
+          }
+
+          semicolons.shift();
+        }
+
+        stack.push(intervalConditional.substring(cursor));
+        return stack.map(function (p) {
+          return p.trim();
+        }).filter(function (p) {
+          return p.length > 0;
+        });
+      } else {
+        return intervalConditional.split(";").map(function (p) {
+          return p.trim();
+        }).filter(function (p) {
+          return p.length > 0;
+        });
+      }
+    }
+  }, {
+    key: "_readSingleIntervalConditionalString",
+    value: function _readSingleIntervalConditionalString(intervalConditional) {
+      var result = {};
+      var parts = intervalConditional.split("@").map(function (p) {
+        return p.trim();
+      });
+
+      if (parts.length !== 2) {
+        throw new Error("Conditional interval can't be parsed : " + intervalConditional);
+      }
+
+      result.interval = this.intervalStringToMinutes(parts[0]);
+
+      if (parts[1].match(/^\(.*\)$/)) {
+        parts[1] = parts[1].substring(1, parts[1].length - 1);
+      }
+
+      result.applies = new OpeningHoursParser(parts[1]).getTable();
+      return result;
+    }
+  }, {
+    key: "intervalStringToMinutes",
+    value: function intervalStringToMinutes(interval) {
+      interval = interval.trim();
+
+      if (/^\d{1,2}:\d{2}:\d{2}$/.test(interval)) {
+        var parts = interval.split(":").map(function (t) {
+          return parseInt(t);
+        });
+        return parts[0] * 60 + parts[1] + parts[2] / 60;
+      } else if (/^\d{1,2}:\d{2}$/.test(interval)) {
+          var _parts = interval.split(":").map(function (t) {
+            return parseInt(t);
+          });
+
+          return _parts[0] * 60 + _parts[1];
+        } else if (/^\d+$/.test(interval)) {
+            return parseInt(interval);
+          } else {
+              throw new Error("Interval value can't be parsed : " + interval);
+            }
+    }
+  }, {
+    key: "minutesToIntervalString",
+    value: function minutesToIntervalString(minutes) {
+      if (typeof minutes !== "number") {
+        throw new Error("Parameter minutes is not a number");
+      }
+
+      var h = Math.floor(minutes / 60);
+      var m = Math.floor(minutes % 60);
+      var s = Math.round((minutes - h * 60 - m) * 60);
+      return [h, m, s].map(function (t) {
+        return t.toString().padStart(2, "0");
+      }).join(":");
+    }
+  }]);
+
+  return TransportHours;
+}();
+
+module.exports = TransportHours;
+
+},{"./OpeningHoursBuilder":3,"./OpeningHoursParser":4,"array-flat-polyfill":1,"fast-deep-equal":2}]},{},[5])(5)
 });
