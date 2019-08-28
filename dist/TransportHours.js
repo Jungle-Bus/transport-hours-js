@@ -526,6 +526,7 @@ var deepEqual = require("fast-deep-equal");
 
 var TAG_UNSET = "unset";
 var TAG_INVALID = "invalid";
+var DAYS_ID = ["mo", "tu", "we", "th", "fr", "sa", "su", "ph"];
 
 var TransportHours = function () {
   function TransportHours() {
@@ -726,21 +727,47 @@ var TransportHours = function () {
           }
         }
 
-        var daysId = ["mo", "tu", "we", "th", "fr", "sa", "su", "ph"];
         result.forEach(function (r) {
           return r.days.sort(function (a, b) {
-            return daysId.indexOf(a) - daysId.indexOf(b);
+            return DAYS_ID.indexOf(a) - DAYS_ID.indexOf(b);
           });
         });
         result.sort(function (a, b) {
-          return daysId.indexOf(a.days[0]) - daysId.indexOf(b.days[0]);
+          return DAYS_ID.indexOf(a.days[0]) - DAYS_ID.indexOf(b.days[0]);
         });
         return result;
       }
     }
   }, {
+    key: "_hourRangeWithin",
+    value: function _hourRangeWithin(wider, smaller) {
+      if (deepEqual(wider, smaller)) {
+        return true;
+      } else {
+        if (wider[0] <= wider[1]) {
+          if (smaller[0] > smaller[1]) {
+            return false;
+          } else {
+            return wider[0] <= smaller[0] && smaller[0] < wider[1] && wider[0] < smaller[1] && smaller[1] <= wider[1];
+          }
+        } else {
+            if (smaller[0] <= smaller[1]) {
+              if (wider[0] <= smaller[0] && wider[0] <= smaller[1]) {
+                return true;
+              } else {
+                return false;
+              }
+            } else {
+                return wider[0] <= smaller[0] && smaller[0] <= "24:00" && "00:00" <= smaller[1] && smaller[1] <= wider[1];
+              }
+          }
+      }
+    }
+  }, {
     key: "_mergeIntervalsSingleDay",
     value: function _mergeIntervalsSingleDay(hours, interval, condIntervals) {
+      var _this3 = this;
+
       var hourRangeToArr = function hourRangeToArr(hr) {
         return hr.map(function (h) {
           return h.split("-");
@@ -755,7 +782,7 @@ var TransportHours = function () {
         for (var i = 0; i < ohHours.length; i++) {
           var ohh = ohHours[i];
 
-          if (ch[0] >= ohh[0] && ch[1] <= ohh[1]) {
+          if (_this3._hourRangeWithin(ohh, ch)) {
             foundOhHours = true;
             break;
           }
@@ -768,30 +795,44 @@ var TransportHours = function () {
         throw new Error("Conditional intervals are not contained in opening hours");
       }
 
+      condHours.sort(function (a, b) {
+        return _this3.intervalStringToMinutes(a[0]) - _this3.intervalStringToMinutes(b[0]);
+      });
+      var overlappingCondHours = condHours.filter(function (ch, i) {
+        return i > 0 ? condHours[i - 1][1] > (ch[0] < ch[1] ? ch[0] : ch[1]) : false;
+      });
+
+      if (overlappingCondHours.length > 0) {
+        throw new Error("Conditional intervals are not exclusive (they overlaps)");
+      }
+
       var ohHoursWithoutConds = [];
       ohHours.forEach(function (ohh, i) {
-        var thisHours = [];
+        var holes = [];
+        var thisCondHours = condHours.filter(function (ch) {
+          return _this3._hourRangeWithin(ohh, ch);
+        });
+        thisCondHours.forEach(function (ch, i) {
+          var isFirst = i === 0;
+          var isLast = i === thisCondHours.length - 1;
 
-        if (condHours.length === 0 || ohh[0] !== condHours[0][0]) {
-          thisHours.push(ohh[0]);
-        }
-
-        condHours.forEach(function (ch, j) {
-          if (ch[0] > ohh[0] && ch[0] < ohh[1]) {
-            thisHours.push(ch[0]);
+          if (isFirst && ohh[0] < ch[0]) {
+            holes.push(ohh[0]);
+            holes.push(ch[0]);
           }
 
-          if (ch[1] > ohh[0] && ch[1] < ohh[1]) {
-            thisHours.push(ch[1]);
+          if (!isFirst && thisCondHours[i - 1][1] < ch[0]) {
+            holes.push(thisCondHours[i - 1][1]);
+            holes.push(ch[0]);
+          }
+
+          if (isLast && ch[1] < ohh[1]) {
+            holes.push(ch[1]);
+            holes.push(ohh[1]);
           }
         });
-
-        if (condHours.length === 0 || ohh[1] !== condHours[condHours.length - 1][1]) {
-          thisHours.push(ohh[1]);
-        }
-
-        ohHoursWithoutConds = ohHoursWithoutConds.concat(thisHours.map(function (h, i) {
-          return i % 2 === 0 ? null : thisHours[i - 1] + "-" + h;
+        ohHoursWithoutConds = ohHoursWithoutConds.concat(holes.map(function (h, i) {
+          return i % 2 === 0 ? null : holes[i - 1] + "-" + h;
         }).filter(function (h) {
           return h !== null;
         }));
@@ -806,10 +847,10 @@ var TransportHours = function () {
   }, {
     key: "intervalConditionalStringToObject",
     value: function intervalConditionalStringToObject(intervalConditional) {
-      var _this3 = this;
+      var _this4 = this;
 
       return this._splitMultipleIntervalConditionalString(intervalConditional).map(function (p) {
-        return _this3._readSingleIntervalConditionalString(p);
+        return _this4._readSingleIntervalConditionalString(p);
       });
     }
   }, {
@@ -851,6 +892,14 @@ var TransportHours = function () {
             });
           }
         }
+      });
+      result.forEach(function (itv) {
+        return itv.days.sort(function (a, b) {
+          return DAYS_ID.indexOf(a) - DAYS_ID.indexOf(b);
+        });
+      });
+      result.sort(function (a, b) {
+        return DAYS_ID.indexOf(a.days[0]) - DAYS_ID.indexOf(b.days[0]);
       });
       return result;
     }

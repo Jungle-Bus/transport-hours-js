@@ -5,6 +5,7 @@ const deepEqual = require("fast-deep-equal");
 
 const TAG_UNSET = "unset";
 const TAG_INVALID = "invalid";
+const DAYS_ID = [ "mo", "tu", "we", "th", "fr", "sa", "su", "ph" ];
 
 /**
  * TransportHours is the main class of the library.
@@ -220,11 +221,48 @@ class TransportHours {
 			}
 
 			// Sort results by day
-			const daysId = [ "mo", "tu", "we", "th", "fr", "sa", "su", "ph" ];
-			result.forEach(r => r.days.sort((a,b) => daysId.indexOf(a) - daysId.indexOf(b)));
-			result.sort((a,b) => daysId.indexOf(a.days[0]) - daysId.indexOf(b.days[0]));
+			result.forEach(r => r.days.sort((a,b) => DAYS_ID.indexOf(a) - DAYS_ID.indexOf(b)));
+			result.sort((a,b) => DAYS_ID.indexOf(a.days[0]) - DAYS_ID.indexOf(b.days[0]));
 
 			return result;
+		}
+	}
+
+	/**
+	 * Check if an hour range is contained in another one
+	 * @private
+	 */
+	_hourRangeWithin(wider, smaller) {
+		if(deepEqual(wider, smaller)) {
+			return true;
+		}
+		else {
+			// During day
+			if(wider[0] <= wider[1]) {
+				if(smaller[0] > smaller[1]) {
+					return false;
+				}
+				else {
+					return wider[0] <= smaller[0] && smaller[0] < wider[1] && wider[0] < smaller[1] && smaller[1] <= wider[1];
+				}
+			}
+			// Over midnight
+			else {
+				// Either before or after midnight
+				if(smaller[0] <= smaller[1]) {
+					// All after wider start
+					if(wider[0] <= smaller[0] && wider[0] <= smaller[1]) {
+						return true;
+					}
+					else {
+						return false;
+					}
+				}
+				// Over midnight
+				else {
+					return wider[0] <= smaller[0] && smaller[0] <= "24:00" && "00:00" <= smaller[1] && smaller[1] <= wider[1];
+				}
+			}
 		}
 	}
 
@@ -243,7 +281,7 @@ class TransportHours {
 
 			for(let i=0; i < ohHours.length; i++) {
 				const ohh = ohHours[i];
-				if(ch[0] >= ohh[0] && ch[1] <= ohh[1]) {
+				if(this._hourRangeWithin(ohh, ch)) {
 					foundOhHours = true;
 					break;
 				}
@@ -256,30 +294,43 @@ class TransportHours {
 			throw new Error("Conditional intervals are not contained in opening hours");
 		}
 
+		// Check conditional hours are not overlapping
+		condHours.sort((a,b) => this.intervalStringToMinutes(a[0]) - this.intervalStringToMinutes(b[0]));
+		const overlappingCondHours = condHours.filter((ch,i) => i > 0 ? (condHours[i-1][1] > (ch[0] < ch[1] ? ch[0] : ch[1])) : false);
+
+		if(overlappingCondHours.length > 0) {
+			throw new Error("Conditional intervals are not exclusive (they overlaps)");
+		}
+
 
 		let ohHoursWithoutConds = [];
 
 		ohHours.forEach((ohh,i) => {
-			const thisHours = [];
+			const holes = [];
 
-			if(condHours.length === 0 || ohh[0] !== condHours[0][0]) {
-				thisHours.push(ohh[0]);
-			}
+			const thisCondHours = condHours.filter(ch => this._hourRangeWithin(ohh, ch));
 
-			condHours.forEach((ch,j) => {
-				if(ch[0] > ohh[0] && ch[0] < ohh[1]) {
-					thisHours.push(ch[0]);
+			thisCondHours.forEach((ch,i) => {
+				const isFirst = i === 0;
+				const isLast = i === thisCondHours.length - 1;
+
+				if(isFirst && ohh[0] < ch[0]) {
+					holes.push(ohh[0]);
+					holes.push(ch[0]);
 				}
-				if(ch[1] > ohh[0] && ch[1] < ohh[1]) {
-					thisHours.push(ch[1]);
+
+				if(!isFirst && thisCondHours[i-1][1] < ch[0]) {
+					holes.push(thisCondHours[i-1][1]);
+					holes.push(ch[0]);
+				}
+
+				if(isLast && ch[1] < ohh[1]) {
+					holes.push(ch[1]);
+					holes.push(ohh[1]);
 				}
 			});
 
-			if(condHours.length === 0 || ohh[1] !== condHours[condHours.length-1][1]) {
-				thisHours.push(ohh[1]);
-			}
-
-			ohHoursWithoutConds = ohHoursWithoutConds.concat(thisHours.map((h,i) => i%2 === 0 ? null : thisHours[i-1]+"-"+h).filter(h => h !== null));
+			ohHoursWithoutConds = ohHoursWithoutConds.concat(holes.map((h,i) => i%2 === 0 ? null : holes[i-1]+"-"+h).filter(h => h !== null));
 		});
 
 		let result = {};
@@ -333,6 +384,10 @@ class TransportHours {
 				}
 			}
 		});
+
+		// Sort by days
+		result.forEach(itv => itv.days.sort((a,b) => DAYS_ID.indexOf(a) - DAYS_ID.indexOf(b)));
+		result.sort((a,b) => DAYS_ID.indexOf(a.days[0]) - DAYS_ID.indexOf(b.days[0]));
 
 		return result;
 	}

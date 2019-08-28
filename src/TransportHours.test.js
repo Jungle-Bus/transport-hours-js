@@ -174,6 +174,67 @@ describe("TransportHours", () => {
 			};
 			expect(result).toStrictEqual(expected);
 		});
+
+		it("handles demo example", () => {
+			const tags = {
+				"interval": "30",
+				"interval:conditional": "60 @ (Mo-Fr 20:00-22:00; Sa 05:00-10:00,20:00-22:00; Su 10:00-15:00,18:00-22:00); 15 @ (Mo-Fr 05:00-09:00,16:00-20:00; Su 15:00-18:00)",
+				"opening_hours": "Mo-Sa 05:00-22:00; Su 07:00-22:00"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: {
+					"mo": ["05:00-22:00"],
+					"tu": ["05:00-22:00"],
+					"we": ["05:00-22:00"],
+					"th": ["05:00-22:00"],
+					"fr": ["05:00-22:00"],
+					"sa": ["05:00-22:00"],
+					"su": ["07:00-22:00"],
+					"ph": []
+				},
+				defaultInterval: 30,
+				otherIntervals: [
+					{
+						interval: 60,
+						applies: {
+							"mo": ["20:00-22:00"],
+							"tu": ["20:00-22:00"],
+							"we": ["20:00-22:00"],
+							"th": ["20:00-22:00"],
+							"fr": ["20:00-22:00"],
+							"sa": ["05:00-10:00","20:00-22:00"],
+							"su": ["10:00-15:00","18:00-22:00"],
+							"ph": []
+						}
+					},
+					{
+						interval: 15,
+						applies: {
+							"mo": ["05:00-09:00","16:00-20:00"],
+							"tu": ["05:00-09:00","16:00-20:00"],
+							"we": ["05:00-09:00","16:00-20:00"],
+							"th": ["05:00-09:00","16:00-20:00"],
+							"fr": ["05:00-09:00","16:00-20:00"],
+							"sa": [],
+							"su": ["15:00-18:00"],
+							"ph": []
+						}
+					}
+				],
+				otherIntervalsByDays: [
+					{ days: [ "mo", "tu", "we", "th", "fr" ], intervals: { "05:00-09:00": 15, "16:00-20:00": 15, "20:00-22:00": 60 } },
+					{ days: [ "sa" ], intervals: { "05:00-10:00": 60, "20:00-22:00": 60 } },
+					{ days: [ "su" ], intervals: { "10:00-15:00": 60, "15:00-18:00": 15, "18:00-22:00": 60 } }
+				],
+				allComputedIntervals: [
+					{ days: [ "mo", "tu", "we", "th", "fr" ], intervals: { "05:00-09:00": 15, "09:00-16:00": 30, "16:00-20:00": 15, "20:00-22:00": 60 } },
+					{ days: [ "sa" ], intervals: { "05:00-10:00": 60, "10:00-20:00": 30, "20:00-22:00": 60 } },
+					{ days: [ "su" ], intervals: { "07:00-10:00": 30, "10:00-15:00": 60, "15:00-18:00": 15, "18:00-22:00": 60 } }
+				]
+			};
+			expect(result).toStrictEqual(expected);
+		});
 	});
 
 	describe("intervalsObjectToTags", () => {
@@ -539,6 +600,128 @@ describe("TransportHours", () => {
 
 			expect(result).toStrictEqual(expected);
 		});
+
+		it("fixes bug 1", () => {
+			const interval = 30;
+			const openingHours = {
+				"mo": ["05:00-22:00"],
+				"tu": [],
+				"we": [],
+				"th": [],
+				"fr": [],
+				"sa": [],
+				"su": [],
+				"ph": []
+			};
+			const intervalCondByDay = [
+				{ days: [ "mo" ], intervals: { "05:00-09:00": 15, "16:00-20:00": 15, "20:00-22:00": 60 } }
+			];
+			const result = th._computeAllIntervals(openingHours, interval, intervalCondByDay);
+
+			const expected = [
+				{ days: [ "mo" ], intervals: { "05:00-09:00": 15, "09:00-16:00": 30, "16:00-20:00": 15, "20:00-22:00": 60 } }
+			];
+
+			expect(result).toStrictEqual(expected);
+		});
+	});
+
+	describe("_hourRangeWithin", () => {
+		it("is true if smaller inside wider", () => {
+			const wider = [ "05:00", "10:00" ];
+			const smaller = [ "06:00", "07:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = true;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is false if smaller outside wider", () => {
+			const wider = [ "06:00", "07:00" ];
+			const smaller = [ "05:00", "10:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = false;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is true if smaller = wider", () => {
+			const wider = [ "06:00", "07:00" ];
+			const smaller = [ "06:00", "07:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = true;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is false if smaller partly outside wider 1", () => {
+			const wider = [ "06:00", "07:00" ];
+			const smaller = [ "06:30", "09:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = false;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is false if smaller partly outside wider 2", () => {
+			const wider = [ "06:00", "07:00" ];
+			const smaller = [ "05:30", "06:10" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = false;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is true if smaller inside wider over midnight 1", () => {
+			const wider = [ "20:00", "02:00" ];
+			const smaller = [ "23:00", "01:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = true;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is true if smaller inside wider over midnight 2", () => {
+			const wider = [ "20:00", "02:00" ];
+			const smaller = [ "23:00", "23:50" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = true;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is false if smaller inside wider over midnight but after midnight", () => {
+			const wider = [ "20:00", "02:00" ];
+			const smaller = [ "00:30", "01:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = false;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is false if smaller outside wider over midnight", () => {
+			const wider = [ "20:00", "02:00" ];
+			const smaller = [ "19:00", "03:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = false;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is true if smaller = wider over midnight", () => {
+			const wider = [ "20:00", "02:00" ];
+			const smaller = [ "20:00", "02:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = true;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is false if smaller partly outside wider 1 over midnight", () => {
+			const wider = [ "20:00", "02:00" ];
+			const smaller = [ "20:30", "03:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = false;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("is false if smaller partly outside wider 2 over midnight", () => {
+			const wider = [ "20:00", "02:00" ];
+			const smaller = [ "19:00", "21:00" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = false;
+			expect(result).toStrictEqual(expected);
+		});
 	});
 
 	describe("_mergeIntervalsSingleDay", () => {
@@ -564,6 +747,15 @@ describe("TransportHours", () => {
 			expect(result).toStrictEqual(expected);
 		});
 
+		it("works with conditional intervals going over midnight", () => {
+			const ohRanges = ["17:00-03:00"];
+			const interval = 10;
+			const condIntervals = { "17:00-19:30": 15, "23:30-03:00": 60 };
+
+			const result = () => th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
+			expect(result).toThrow(new Error("Conditional intervals are not exclusive (they overlaps)"));
+		});
+
 		it("fails with opening hours not covering conditional intervals", () => {
 			const ohRanges = ["03:00-15:15"];
 			const interval = 10;
@@ -580,6 +772,24 @@ describe("TransportHours", () => {
 
 			const result = () => th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
 			expect(result).toThrow(new Error("Conditional intervals are not contained in opening hours"));
+		});
+
+		it("fails with conditional intervals not exclusive", () => {
+			const ohRanges = ["03:00-20:00"];
+			const interval = 10;
+			const condIntervals = { "03:00-10:00": 15, "09:30-15:00": 30, "17:00-20:00": 13 };
+
+			const result = () => th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
+			expect(result).toThrow(new Error("Conditional intervals are not exclusive (they overlaps)"));
+		});
+
+		it("fails with conditional intervals not exclusive over midnight", () => {
+			const ohRanges = ["17:00-03:00"];
+			const interval = 10;
+			const condIntervals = { "17:00-19:30": 15, "19:30-01:00": 15, "23:30-03:00": 60 };
+
+			const result = () => th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
+			expect(result).toThrow(new Error("Conditional intervals are not exclusive (they overlaps)"));
 		});
 
 		it("works with opening hours being equal to conditional intervals", () => {
@@ -633,6 +843,18 @@ describe("TransportHours", () => {
 
 			const result = th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
 			const expected = { "05:00-09:00": 15, "09:00-22:00": 30 };
+
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("fixes bug 1", () => {
+			const ohRanges = ["05:00-22:00"];
+			const interval = 30;
+			const condIntervals = { "05:00-09:00": 15, "16:00-20:00": 15, "20:00-22:00": 60 };
+
+			const result = th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
+
+			const expected = { "05:00-09:00": 15, "09:00-16:00": 30, "16:00-20:00": 15, "20:00-22:00": 60 };
 
 			expect(result).toStrictEqual(expected);
 		});
