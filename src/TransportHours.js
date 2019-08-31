@@ -90,10 +90,10 @@ class TransportHours {
 				const duration = this._timerangeDuration(timerange);
 
 				if(intervalDuration[interval]) {
-					intervalDuration[interval] += duration;
+					intervalDuration[interval] += duration * nbDays;
 				}
 				else {
-					intervalDuration[interval] = duration;
+					intervalDuration[interval] = duration * nbDays;
 				}
 			});
 		});

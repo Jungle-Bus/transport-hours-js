@@ -372,6 +372,22 @@ describe("TransportHours", () => {
 			const result = th.intervalsObjectToTags(intervals);
 			expect(result).toStrictEqual(expected);
 		});
+
+		it("works with demo 1", () => {
+			const intervals = [
+				{ "days": ["mo", "tu", "we", "th", "fr" ], "intervals": { "06:00-10:00": 15, "10:00-17:00": 30, "17:00-22:00": 15 } },
+				{ "days": [ "sa", "su" ], "intervals": { "06:00-22:00": 60 } }
+			];
+
+			const expected = {
+				"opening_hours": "Mo-Su 06:00-22:00; PH off",
+				"interval": "15",
+				"interval:conditional": "30 @ (Mo-Fr 10:00-17:00); 60 @ (Sa,Su 06:00-22:00)"
+			};
+
+			const result = th.intervalsObjectToTags(intervals);
+			expect(result).toStrictEqual(expected);
+		});
 	});
 
 	describe("_timerangeDuration", () => {
