@@ -109,7 +109,7 @@ class OpeningHoursParser {
 					days = this._parseDays("Mo-Su,PH");
 				}
 				if (segment == "off") {
-					times = []
+					times = "off"
 				}
 				else {
 					times.push(this._cleanTime(segment))
@@ -127,11 +127,14 @@ class OpeningHoursParser {
 			}
 		});
 
-		if(days.length > 0 && times.length === 0) {
-			days.forEach((day) => {
+		days.forEach((day) => {
+			if(times === "off") {
+				tempData[day] = [];
+			}
+			else if(times.length === 0) {
 				tempData[day] = ["00:00-24:00"];
-			});
-		}
+			}
+		});
 
 		//apply data to main obj
 		for (let key in tempData) {

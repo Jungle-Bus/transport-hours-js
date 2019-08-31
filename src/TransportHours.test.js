@@ -235,6 +235,65 @@ describe("TransportHours", () => {
 			};
 			expect(result).toStrictEqual(expected);
 		});
+
+		it("works with opening_hours having PH same as rest of week", () => {
+			const tags = {
+				"interval": "30",
+				"interval:conditional": "15 @ (Mo-Su 10:00-13:00); 60 @ (PH 15:00-17:00)",
+				"opening_hours": "05:00-22:00"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: {
+					"mo": ["05:00-22:00"],
+					"tu": ["05:00-22:00"],
+					"we": ["05:00-22:00"],
+					"th": ["05:00-22:00"],
+					"fr": ["05:00-22:00"],
+					"sa": ["05:00-22:00"],
+					"su": ["05:00-22:00"],
+					"ph": ["05:00-22:00"]
+				},
+				defaultInterval: 30,
+				otherIntervals: [
+					{
+						interval: 15,
+						applies: {
+							"mo": ["10:00-13:00"],
+							"tu": ["10:00-13:00"],
+							"we": ["10:00-13:00"],
+							"th": ["10:00-13:00"],
+							"fr": ["10:00-13:00"],
+							"sa": ["10:00-13:00"],
+							"su": ["10:00-13:00"],
+							"ph": []
+						}
+					},
+					{
+						interval: 60,
+						applies: {
+							"mo": [],
+							"tu": [],
+							"we": [],
+							"th": [],
+							"fr": [],
+							"sa": [],
+							"su": [],
+							"ph": ["15:00-17:00"]
+						}
+					}
+				],
+				otherIntervalsByDays: [
+					{ days: [ "mo", "tu", "we", "th", "fr", "sa", "su" ], intervals: { "10:00-13:00": 15 } },
+					{ days: [ "ph" ], intervals: { "15:00-17:00": 60 } }
+				],
+				allComputedIntervals: [
+					{ days: [ "mo", "tu", "we", "th", "fr", "sa", "su" ], intervals: { "05:00-10:00": 30, "10:00-13:00": 15, "13:00-22:00": 30 } },
+					{ days: [ "ph" ], intervals: { "05:00-15:00": 30, "15:00-17:00": 60, "17:00-22:00": 30 } }
+				]
+			};
+			expect(result).toStrictEqual(expected);
+		});
 	});
 
 	describe("intervalsObjectToTags", () => {
@@ -277,6 +336,37 @@ describe("TransportHours", () => {
 				"opening_hours": "Mo,Tu 05:00-23:00; We 04:00-23:00",
 				"interval": "30",
 				"interval:conditional": "15 @ (Mo,Tu 07:00-10:00,16:00-19:00; We 06:30-11:00,16:15-19:00)"
+			};
+
+			const result = th.intervalsObjectToTags(intervals);
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("works with PH same as all week in opening_hours, but differs in interval", () => {
+			const intervals = [
+				{ days: [ "mo", "tu", "we", "th", "fr", "sa", "su" ], intervals: { "05:00-07:00": 15, "07:00-10:00": 30, "10:00-22:00": 15 } },
+				{ days: [ "ph" ], intervals: { "05:00-22:00": 15 } }
+			];
+
+			const expected = {
+				"opening_hours": "Mo-Su,PH 05:00-22:00",
+				"interval": "15",
+				"interval:conditional": "30 @ (Mo-Su 07:00-10:00)"
+			};
+
+			const result = th.intervalsObjectToTags(intervals);
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("works with PH off", () => {
+			const intervals = [
+				{ days: [ "mo", "tu", "we", "th", "fr", "sa", "su" ], intervals: { "05:00-07:00": 15, "07:00-10:00": 30, "10:00-22:00": 15 } }
+			];
+
+			const expected = {
+				"opening_hours": "Mo-Su 05:00-22:00; PH off",
+				"interval": "15",
+				"interval:conditional": "30 @ (Mo-Su 07:00-10:00)"
 			};
 
 			const result = th.intervalsObjectToTags(intervals);

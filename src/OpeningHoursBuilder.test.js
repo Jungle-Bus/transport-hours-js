@@ -37,9 +37,42 @@ describe("OpeningHoursBuilder", () => {
 		it("detects 24/7 case", () => {
 			const periods = [
 				{ days: ["mo","tu","we","th","fr"], hours: [ "00:00-12:00","12:00-24:00" ] },
-				{ days: ["sa","su"], hours: [ "00:00-15:00","15:00-24:00" ] }
+				{ days: ["sa","su","ph"], hours: [ "00:00-15:00","15:00-24:00" ] }
 			];
 			const expected = "24/7";
+
+			const result = (new OpeningHoursBuilder(periods)).getValue();
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("detects 24/7 case but doesn't simplify if explicitPH true", () => {
+			const periods = [
+				{ days: ["mo","tu","we","th","fr"], hours: [ "00:00-12:00","12:00-24:00" ] },
+				{ days: ["sa","su","ph"], hours: [ "00:00-15:00","15:00-24:00" ] }
+			];
+			const expected = "Mo-Su,PH 00:00-24:00";
+
+			const result = (new OpeningHoursBuilder(periods, {explicitPH: true})).getValue();
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("doesn't transform into 24/7 if PH off and explicitPH option true", () => {
+			const periods = [
+				{ days: ["mo","tu","we","th","fr"], hours: [ "00:00-12:00","12:00-24:00" ] },
+				{ days: ["sa","su"], hours: [ "00:00-15:00","15:00-24:00" ] }
+			];
+			const expected = "Mo-Su 00:00-24:00; PH off";
+
+			const result = (new OpeningHoursBuilder(periods, {explicitPH: true})).getValue();
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("doesn't transform into 24/7 if PH off and no option set", () => {
+			const periods = [
+				{ days: ["mo","tu","we","th","fr"], hours: [ "00:00-12:00","12:00-24:00" ] },
+				{ days: ["sa","su"], hours: [ "00:00-15:00","15:00-24:00" ] }
+			];
+			const expected = "Mo-Su 00:00-24:00";
 
 			const result = (new OpeningHoursBuilder(periods)).getValue();
 			expect(result).toStrictEqual(expected);
@@ -131,9 +164,17 @@ describe("OpeningHoursBuilder", () => {
 			expect(result).toStrictEqual(expected);
 		});
 
-		it("simplifies days if all are set", () => {
+		it("simplifies all days set", () => {
+			const days = ["mo","tu","we","th","fr","sa","su","ph"];
+			const expected = "Mo-Su,PH";
+
+			const result = OpeningHoursBuilder.DaysToOH(days);
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("merges all days in week", () => {
 			const days = ["mo","tu","we","th","fr","sa","su"];
-			const expected = "";
+			const expected = "Mo-Su";
 
 			const result = OpeningHoursBuilder.DaysToOH(days);
 			expect(result).toStrictEqual(expected);

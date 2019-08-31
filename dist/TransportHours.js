@@ -75,12 +75,14 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
+require("array-flat-polyfill");
+
 var DAYS = ["mo", "tu", "we", "th", "fr", "sa", "su", "ph"];
 var DAYS_OH = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su", "PH"];
 var HOURS_RGX = /^\d{2}\:\d{2}\-\d{2}\:\d{2}$/;
 
 var OpeningHoursBuilder = function () {
-  function OpeningHoursBuilder(periods) {
+  function OpeningHoursBuilder(periods, options) {
     _classCallCheck(this, OpeningHoursBuilder);
 
     if (!periods || !Array.isArray(periods) || periods.filter(function (p) {
@@ -89,6 +91,9 @@ var OpeningHoursBuilder = function () {
       throw new Error("The given periods are not valid");
     }
 
+    options = Object.assign({
+      explicitPH: false
+    }, options);
     var ohHours = periods.map(function (p) {
       return {
         days: p.days,
@@ -110,8 +115,16 @@ var OpeningHoursBuilder = function () {
       return p.join(" ").trim();
     }).join("; ");
 
-    if (this._ohValue === "00:00-24:00") {
+    if (!options.explicitPH && (this._ohValue === "00:00-24:00" || this._ohValue === "Mo-Su,PH 00:00-24:00")) {
       this._ohValue = "24/7";
+    }
+
+    var distinctDays = _toConsumableArray(new Set(periods.map(function (p) {
+      return p.days;
+    }).flat()));
+
+    if (options.explicitPH && distinctDays.length === 7 && !distinctDays.includes("ph")) {
+      this._ohValue += "; PH off";
     }
   }
 
@@ -161,11 +174,6 @@ var OpeningHoursBuilder = function () {
           return DAYS_OH[d];
         }).join(dId[1] - dId[0] > 1 ? "-" : ",") : DAYS_OH[dId];
       }).join(",");
-
-      if (dayPart === "Mo-Su") {
-        dayPart = "";
-      }
-
       return dayPart;
     }
   }, {
@@ -224,7 +232,7 @@ var OpeningHoursBuilder = function () {
 
 module.exports = OpeningHoursBuilder;
 
-},{}],4:[function(require,module,exports){
+},{"array-flat-polyfill":1}],4:[function(require,module,exports){
 "use strict";
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -329,7 +337,7 @@ var OpeningHoursParser = function () {
           }
 
           if (segment == "off") {
-            times = [];
+            times = "off";
           } else {
             times.push(_this2._cleanTime(segment));
           }
@@ -342,12 +350,13 @@ var OpeningHoursParser = function () {
           tempData[day] = times;
         }
       });
-
-      if (days.length > 0 && times.length === 0) {
-        days.forEach(function (day) {
+      days.forEach(function (day) {
+        if (times === "off") {
+          tempData[day] = [];
+        } else if (times.length === 0) {
           tempData[day] = ["00:00-24:00"];
-        });
-      }
+        }
+      });
 
       for (var key in tempData) {
         this.openingHours[key] = tempData[key];
@@ -590,7 +599,9 @@ var TransportHours = function () {
           hours: Object.keys(p.intervals)
         };
       });
-      result.opening_hours = new OpeningHoursBuilder(periodsOH).getValue();
+      result.opening_hours = new OpeningHoursBuilder(periodsOH, {
+        explicitPH: true
+      }).getValue();
       var intervalDuration = {};
       allIntervals.forEach(function (p) {
         var nbDays = p.days.length;

@@ -55,6 +55,7 @@ OpeningHoursBuilder allows to create a clean value for OSM tag opening_hours\\=\
 ### Parameters
 
 -   `periods` **[Array][32]&lt;[Object][31]>** List of periods (objects like { days: [ "mo", "tu", "we" ], hours: [ "08:00-15:00", "19:30-22:50" ] })
+-   `options` **[Object][31]?** Other parameters
 
 ### getValue
 

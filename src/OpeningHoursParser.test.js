@@ -19,6 +19,40 @@ describe("OpeningHoursParser", () => {
 			expect(result).toEqual(expected);
 		});
 
+		it("handles PH off", () => {
+			const value = "10:00-12:00; PH off";
+			const oh = new OpeningHoursParser(value);
+			const result = oh.getTable();
+			const expected = {
+				mo: ["10:00-12:00"],
+				tu: ["10:00-12:00"],
+				we: ["10:00-12:00"],
+				th: ["10:00-12:00"],
+				fr: ["10:00-12:00"],
+				sa: ["10:00-12:00"],
+				su: ["10:00-12:00"],
+				ph: []
+			};
+			expect(result).toEqual(expected);
+		});
+
+		it("handles full week + PH", () => {
+			const value = "Mo-Su,PH 10:00-12:00";
+			const oh = new OpeningHoursParser(value);
+			const result = oh.getTable();
+			const expected = {
+				mo: ["10:00-12:00"],
+				tu: ["10:00-12:00"],
+				we: ["10:00-12:00"],
+				th: ["10:00-12:00"],
+				fr: ["10:00-12:00"],
+				sa: ["10:00-12:00"],
+				su: ["10:00-12:00"],
+				ph: ["10:00-12:00"]
+			};
+			expect(result).toEqual(expected);
+		});
+
 		it("handles day + hours", () => {
 			const value = "Mo 10:00-12:00";
 			const oh = new OpeningHoursParser(value);

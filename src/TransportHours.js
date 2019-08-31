@@ -78,7 +78,7 @@ class TransportHours {
 
 		// Create opening_hours
 		const periodsOH = allIntervals.map(p => ({ days: p.days, hours: Object.keys(p.intervals) }));
-		result.opening_hours = (new OpeningHoursBuilder(periodsOH)).getValue();
+		result.opening_hours = (new OpeningHoursBuilder(periodsOH, { explicitPH: true })).getValue();
 
 		// Find most frequent interval
 		const intervalDuration = {};

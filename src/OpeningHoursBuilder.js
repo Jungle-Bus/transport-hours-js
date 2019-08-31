@@ -1,3 +1,4 @@
+require("array-flat-polyfill");
 const DAYS = [ "mo", "tu", "we", "th", "fr", "sa", "su", "ph" ];
 const DAYS_OH = [ "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su", "PH" ];
 const HOURS_RGX = /^\d{2}\:\d{2}\-\d{2}\:\d{2}$/;
@@ -9,11 +10,15 @@ class OpeningHoursBuilder {
 	/**
 	 * Creates a new builder object.
 	 * @param {Object[]} periods List of periods (objects like { days: [ "mo", "tu", "we" ], hours: [ "08:00-15:00", "19:30-22:50" ] })
+	 * @param {Object} [options] Other parameters
+	 * @param {boolean} [options.explicitPH] True to always add an explicit rule for public holidays (defaults to false)
 	 */
-	constructor(periods) {
+	constructor(periods, options) {
 		if(!periods || !Array.isArray(periods) || periods.filter(p => !OpeningHoursBuilder.IsPeriodValid(p)).length > 0) {
 			throw new Error("The given periods are not valid");
 		}
+
+		options = Object.assign({ explicitPH: false }, options);
 
 		// Convert hours ranges
 		const ohHours = periods.map(p => ({ days: p.days, hours: OpeningHoursBuilder.HoursToOH(p.hours) }));
@@ -38,8 +43,13 @@ class OpeningHoursBuilder {
 		this._ohValue = ohPeriods.map(p => p.join(" ").trim()).join("; ");
 
 		// Simplify syntax
-		if(this._ohValue === "00:00-24:00") {
+		if(!options.explicitPH && (this._ohValue === "00:00-24:00" || this._ohValue === "Mo-Su,PH 00:00-24:00")) {
 			this._ohValue = "24/7";
+		}
+
+		const distinctDays = [...new Set(periods.map(p => p.days).flat())];
+		if(options.explicitPH && distinctDays.length === 7 && !distinctDays.includes("ph")) {
+			this._ohValue += "; PH off";
 		}
 	}
 
@@ -91,9 +101,6 @@ class OpeningHoursBuilder {
 		let dayPart = daysId.map(dId => (
 			Array.isArray(dId) ? dId.map(d => DAYS_OH[d]).join(dId[1]-dId[0] > 1 ? "-" : ",") : DAYS_OH[dId]
 		)).join(",");
-
-		// Simplify if full week
-		if(dayPart === "Mo-Su") { dayPart = ""; }
 
 		return dayPart;
 	}
