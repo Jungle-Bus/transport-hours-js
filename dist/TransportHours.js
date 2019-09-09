@@ -806,11 +806,20 @@ var TransportHours = function () {
         throw new Error("Conditional intervals are not contained in opening hours");
       }
 
+      var goneOverMidnight = false;
       condHours.sort(function (a, b) {
         return _this3.intervalStringToMinutes(a[0]) - _this3.intervalStringToMinutes(b[0]);
       });
       var overlappingCondHours = condHours.filter(function (ch, i) {
-        return i > 0 ? condHours[i - 1][1] > (ch[0] < ch[1] ? ch[0] : ch[1]) : false;
+        if (!goneOverMidnight) {
+          if (ch[0] > ch[1]) {
+            goneOverMidnight = true;
+          }
+
+          return i > 0 ? condHours[i - 1][1] > ch[0] : false;
+        } else {
+          return true;
+        }
       });
 
       if (overlappingCondHours.length > 0) {

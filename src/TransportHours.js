@@ -295,8 +295,17 @@ class TransportHours {
 		}
 
 		// Check conditional hours are not overlapping
+		let goneOverMidnight = false;
 		condHours.sort((a,b) => this.intervalStringToMinutes(a[0]) - this.intervalStringToMinutes(b[0]));
-		const overlappingCondHours = condHours.filter((ch,i) => i > 0 ? (condHours[i-1][1] > (ch[0] < ch[1] ? ch[0] : ch[1])) : false);
+		const overlappingCondHours = condHours.filter((ch,i) => {
+			if(!goneOverMidnight) {
+				if(ch[0] > ch[1]) { goneOverMidnight = true; }
+				return i > 0 ? (condHours[i-1][1] > ch[0]) : false;
+			}
+			else {
+				return true;
+			}
+		});
 
 		if(overlappingCondHours.length > 0) {
 			throw new Error("Conditional intervals are not exclusive (they overlaps)");
