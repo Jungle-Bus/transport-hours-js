@@ -775,6 +775,29 @@ var TransportHours = function () {
       }
     }
   }, {
+    key: "_hourRangeOverlap",
+    value: function _hourRangeOverlap(first_range, second_range) {
+      if (first_range === second_range) {
+        return false;
+      } else {
+        if (first_range[0] > second_range[0]) {
+          var swap = first_range;
+          first_range = second_range;
+          second_range = swap;
+        }
+
+        if (first_range[0] <= first_range[1]) {
+          return second_range[0] < first_range[1];
+        } else {
+            if (second_range[0] <= second_range[1]) {
+              return first_range[0] <= second_range[0] && first_range[0] <= second_range[1];
+            } else {
+                return true;
+              }
+          }
+      }
+    }
+  }, {
     key: "_mergeIntervalsSingleDay",
     value: function _mergeIntervalsSingleDay(hours, interval, condIntervals) {
       var _this3 = this;
@@ -810,20 +833,23 @@ var TransportHours = function () {
       condHours.sort(function (a, b) {
         return _this3.intervalStringToMinutes(a[0]) - _this3.intervalStringToMinutes(b[0]);
       });
-      var overlappingCondHours = condHours.filter(function (ch, i) {
+
+      for (var i = 0; i < condHours.length; i++) {
+        var ch = condHours[i];
+
         if (!goneOverMidnight) {
           if (ch[0] > ch[1]) {
             goneOverMidnight = true;
           }
 
-          return i > 0 ? condHours[i - 1][1] > ch[0] : false;
+          for (var j = 0; j < i; j++) {
+            if (this._hourRangeOverlap(ch, condHours[j])) {
+              throw new Error("Conditional intervals are not exclusive (they overlaps)");
+            }
+          }
         } else {
-          return true;
+          throw new Error("Conditional intervals are not exclusive (several intervals after midnight)");
         }
-      });
-
-      if (overlappingCondHours.length > 0) {
-        throw new Error("Conditional intervals are not exclusive (they overlaps)");
       }
 
       var ohHoursWithoutConds = [];
@@ -846,9 +872,27 @@ var TransportHours = function () {
             holes.push(ch[0]);
           }
 
-          if (isLast && ch[1] < ohh[1]) {
-            holes.push(ch[1]);
-            holes.push(ohh[1]);
+          if (isLast) {
+            var appendLast = false;
+
+            if (ohh[0] < ohh[1]) {
+              if (ch[1] < ohh[1]) {
+                appendLast = true;
+              }
+            } else {
+                if (ch[0] < ch[1]) {
+                  appendLast = true;
+                } else {
+                    if (ch[1] < ohh[1]) {
+                      appendLast = true;
+                    }
+                  }
+              }
+
+            if (appendLast) {
+              holes.push(ch[1]);
+              holes.push(ohh[1]);
+            }
           }
         });
         ohHoursWithoutConds = ohHoursWithoutConds.concat(holes.map(function (h, i) {

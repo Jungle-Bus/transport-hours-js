@@ -267,6 +267,39 @@ class TransportHours {
 	}
 
 	/**
+	 * Check if an hour range overlap another one
+	 * @private
+	 */
+	_hourRangeOverlap(first_range, second_range) {
+		if(first_range === second_range) {
+			return false;
+		}
+		else {
+			if(first_range[0] > second_range[0]) {
+				const swap = first_range;
+				first_range = second_range;
+				second_range = swap;
+			}
+
+			// First one is during day
+			if(first_range[0] <= first_range[1]) {
+				return second_range[0] < first_range[1];
+			}
+			// First one is over midnight
+			else {
+				// Second one is during day (Either before or after midnight)
+				if(second_range[0] <= second_range[1]) {
+					return first_range[0] <= second_range[0] && first_range[0] <= second_range[1];
+				}
+				// Second one is over midnight
+				else {
+					return true;
+				}
+			}
+		}
+	}
+
+	/**
 	 * Add default interval within opening hours to conditional intervals
 	 * @private
 	 */
@@ -297,18 +330,24 @@ class TransportHours {
 		// Check conditional hours are not overlapping
 		let goneOverMidnight = false;
 		condHours.sort((a,b) => this.intervalStringToMinutes(a[0]) - this.intervalStringToMinutes(b[0]));
-		const overlappingCondHours = condHours.filter((ch,i) => {
+
+		for(let i=0; i < condHours.length; i++) {
+			const ch = condHours[i];
+
 			if(!goneOverMidnight) {
-				if(ch[0] > ch[1]) { goneOverMidnight = true; }
-				return i > 0 ? (condHours[i-1][1] > ch[0]) : false;
+				if(ch[0] > ch[1]) {
+					goneOverMidnight = true;
+				}
+
+				for(let j=0; j < i; j++) {
+					if(this._hourRangeOverlap(ch, condHours[j])) {
+						throw new Error("Conditional intervals are not exclusive (they overlaps)");
+					}
+				}
 			}
 			else {
-				return true;
+				throw new Error("Conditional intervals are not exclusive (several intervals after midnight)");
 			}
-		});
-
-		if(overlappingCondHours.length > 0) {
-			throw new Error("Conditional intervals are not exclusive (they overlaps)");
 		}
 
 
@@ -333,9 +372,34 @@ class TransportHours {
 					holes.push(ch[0]);
 				}
 
-				if(isLast && ch[1] < ohh[1]) {
-					holes.push(ch[1]);
-					holes.push(ohh[1]);
+				if(isLast) {
+					let appendLast = false;
+
+					// opening hours before midnight
+					if(ohh[0] < ohh[1]) {
+						if(ch[1] < ohh[1]) {
+							appendLast = true;
+						}
+					}
+					// opening hours going after midnight
+					else {
+						// current range before midnight
+						if(ch[0] < ch[1]) {
+							appendLast = true;
+						}
+						// current range going through midnight
+						else {
+							// Current range ending before opening hour end
+							if(ch[1] < ohh[1]) {
+								appendLast = true;
+							}
+						}
+					}
+
+					if(appendLast) {
+						holes.push(ch[1]);
+						holes.push(ohh[1]);
+					}
 				}
 			});
 
