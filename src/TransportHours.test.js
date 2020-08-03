@@ -368,6 +368,50 @@ describe("TransportHours", () => {
 			};
 			expect(result).toStrictEqual(expected);
 		});
+
+		it("handles over midnight 2", () => {
+			const tags = {
+				"interval": "35",
+				"interval:conditional": "60 @ (Mo-Su,PH 01:20-03:20)",
+				"opening_hours": "Mo-Su,PH 21:50-06:55"
+			};
+			const result = th.tagsToHoursObject(tags);
+			const expected = {
+				opens: {
+					"mo": ["21:50-06:55"],
+					"tu": ["21:50-06:55"],
+					"we": ["21:50-06:55"],
+					"th": ["21:50-06:55"],
+					"fr": ["21:50-06:55"],
+					"sa": ["21:50-06:55"],
+					"su": ["21:50-06:55"],
+					"ph": ["21:50-06:55"]
+				},
+				defaultInterval: 35,
+				otherIntervals: [
+					{
+						interval: 60,
+						applies: {
+							"mo": ["01:20-03:20"],
+							"tu": ["01:20-03:20"],
+							"we": ["01:20-03:20"],
+							"th": ["01:20-03:20"],
+							"fr": ["01:20-03:20"],
+							"sa": ["01:20-03:20"],
+							"su": ["01:20-03:20"],
+							"ph": ["01:20-03:20"]
+						}
+					}
+				],
+				otherIntervalsByDays: [
+					{ days: [ "mo", "tu", "we", "th", "fr", "sa", "su", "ph" ], intervals: { "01:20-03:20": 60 } }
+				],
+				allComputedIntervals: [
+					{ days: [ "mo", "tu", "we", "th", "fr", "sa", "su", "ph" ], intervals: { "21:50-01:20": 35, "01:20-03:20": 60, "03:20-06:55": 35 } }
+				]
+			};
+			expect(result).toStrictEqual(expected);
+		});
 	});
 
 	describe("intervalsObjectToTags", () => {
@@ -838,6 +882,30 @@ describe("TransportHours", () => {
 
 			expect(result).toStrictEqual(expected);
 		});
+
+		it("works over midnight 2", () => {
+			const interval = 30;
+			const openingHours = {
+				"mo": ["21:50-06:55"],
+				"tu": ["21:50-06:55"],
+				"we": ["21:50-06:55"],
+				"th": ["21:50-06:55"],
+				"fr": ["21:50-06:55"],
+				"sa": ["21:50-06:55"],
+				"su": ["21:50-06:55"],
+				"ph": ["21:50-06:55"]
+			};
+			const intervalCondByDay = [
+				{ days: [ "mo", "tu", "we", "th", "fr", "sa", "su", "ph" ], intervals: { "01:20-03:20": 60 } }
+			];
+			const result = th._computeAllIntervals(openingHours, interval, intervalCondByDay);
+
+			const expected = [
+				{ days: [ "mo", "tu", "we", "th", "fr", "sa", "su", "ph" ], intervals: { "21:50-01:20": 30, "01:20-03:20": 60, "03:20-06:55": 30 } }
+			];
+
+			expect(result).toStrictEqual(expected);
+		});
 	});
 
 	describe("_hourRangeOverlap", () => {
@@ -947,14 +1015,6 @@ describe("TransportHours", () => {
 			expect(result).toStrictEqual(expected);
 		});
 
-		it("is false if smaller inside wider over midnight but after midnight", () => {
-			const wider = [ "20:00", "02:00" ];
-			const smaller = [ "00:30", "01:00" ];
-			const result = th._hourRangeWithin(wider, smaller);
-			const expected = false;
-			expect(result).toStrictEqual(expected);
-		});
-
 		it("is false if smaller outside wider over midnight", () => {
 			const wider = [ "20:00", "02:00" ];
 			const smaller = [ "19:00", "03:00" ];
@@ -984,6 +1044,14 @@ describe("TransportHours", () => {
 			const smaller = [ "19:00", "21:00" ];
 			const result = th._hourRangeWithin(wider, smaller);
 			const expected = false;
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("fixes bug 2", () => {
+			const wider = [ "21:50", "06:55" ];
+			const smaller = [ "01:20", "03:20" ];
+			const result = th._hourRangeWithin(wider, smaller);
+			const expected = true;
 			expect(result).toStrictEqual(expected);
 		});
 	});
@@ -1143,6 +1211,42 @@ describe("TransportHours", () => {
 			const result = th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
 
 			const expected = { "05:00-09:00": 15, "09:00-16:00": 30, "16:00-20:00": 15, "20:00-22:00": 60 };
+
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("fixes bug 2-0", () => {
+			const ohRanges = ["21:50-06:55"];
+			const interval = 30;
+			const condIntervals = { "01:20-03:20": 60 };
+
+			const result = th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
+
+			const expected = { "21:50-01:20": 30, "01:20-03:20": 60, "03:20-06:55": 30 };
+
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("fixes bug 2-1", () => {
+			const ohRanges = ["21:50-06:55"];
+			const interval = 30;
+			const condIntervals = { "22:00-23:00": 45, "01:20-03:20": 60 };
+
+			const result = th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
+
+			const expected = { "21:50-22:00": 30, "22:00-23:00": 45, "23:00-01:20": 30, "01:20-03:20": 60, "03:20-06:55": 30 };
+
+			expect(result).toStrictEqual(expected);
+		});
+
+		it("fixes bug 2-2", () => {
+			const ohRanges = ["07:00-22:00"];
+			const interval = 30;
+			const condIntervals = { "15:00-18:00": 15, "10:00-15:00": 60, "18:00-22:00": 60 };
+
+			const result = th._mergeIntervalsSingleDay(ohRanges, interval, condIntervals);
+
+			const expected = { "07:00-10:00": 30, "10:00-15:00": 60, "15:00-18:00": 15, "18:00-22:00": 60 };
 
 			expect(result).toStrictEqual(expected);
 		});

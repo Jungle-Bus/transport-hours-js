@@ -254,6 +254,10 @@ class TransportHours {
 					if(wider[0] <= smaller[0] && wider[0] <= smaller[1]) {
 						return true;
 					}
+					// All before wider end
+					else if("00:00" <= smaller[0] && smaller[1] <= wider[1]) {
+						return true;
+					}
 					else {
 						return false;
 					}
@@ -329,10 +333,10 @@ class TransportHours {
 
 		// Check conditional hours are not overlapping
 		let goneOverMidnight = false;
-		condHours.sort((a,b) => this.intervalStringToMinutes(a[0]) - this.intervalStringToMinutes(b[0]));
+		const sortedCondHours = condHours.slice(0).sort((a,b) => this.intervalStringToMinutes(a[0]) - this.intervalStringToMinutes(b[0]));
 
-		for(let i=0; i < condHours.length; i++) {
-			const ch = condHours[i];
+		for(let i=0; i < sortedCondHours.length; i++) {
+			const ch = sortedCondHours[i];
 
 			if(!goneOverMidnight) {
 				if(ch[0] > ch[1]) {
@@ -340,7 +344,7 @@ class TransportHours {
 				}
 
 				for(let j=0; j < i; j++) {
-					if(this._hourRangeOverlap(ch, condHours[j])) {
+					if(this._hourRangeOverlap(ch, sortedCondHours[j])) {
 						throw new Error("Conditional intervals are not exclusive (they overlaps)");
 					}
 				}
@@ -356,7 +360,8 @@ class TransportHours {
 		ohHours.forEach((ohh,i) => {
 			const holes = [];
 
-			const thisCondHours = condHours.filter(ch => this._hourRangeWithin(ohh, ch));
+			const ohhOverMidnight = ohh[0] > ohh[1];
+			const thisCondHours = (ohhOverMidnight ? condHours : sortedCondHours).filter(ch => this._hourRangeWithin(ohh, ch));
 
 			thisCondHours.forEach((ch,i) => {
 				const isFirst = i === 0;
@@ -367,9 +372,14 @@ class TransportHours {
 					holes.push(ch[0]);
 				}
 
-				if(!isFirst && thisCondHours[i-1][1] < ch[0]) {
-					holes.push(thisCondHours[i-1][1]);
-					holes.push(ch[0]);
+				if(!isFirst) {
+					if(
+						thisCondHours[i-1][1] < ch[0]
+						|| (ohhOverMidnight && thisCondHours[i-1][1] > ch[0])
+					) {
+						holes.push(thisCondHours[i-1][1]);
+						holes.push(ch[0]);
+					}
 				}
 
 				if(isLast) {
@@ -384,7 +394,15 @@ class TransportHours {
 					// opening hours going after midnight
 					else {
 						// current range before midnight
-						if(ch[0] < ch[1]) {
+						if(ch[0] < ch[1] && ohh[0] <= ch[0] && ch[1] <= "24:00") {
+							appendLast = true;
+						}
+						// current range after midnight
+						else if(ch[0] < ch[1] && "00:00" <= ch[0] && ch[1] <= ohh[1]) {
+							if(isFirst) {
+								holes.push(ohh[0]);
+								holes.push(ch[0]);
+							}
 							appendLast = true;
 						}
 						// current range going through midnight

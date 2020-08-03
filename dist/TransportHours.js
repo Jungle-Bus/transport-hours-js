@@ -765,9 +765,11 @@ var TransportHours = function () {
             if (smaller[0] <= smaller[1]) {
               if (wider[0] <= smaller[0] && wider[0] <= smaller[1]) {
                 return true;
-              } else {
-                return false;
-              }
+              } else if ("00:00" <= smaller[0] && smaller[1] <= wider[1]) {
+                  return true;
+                } else {
+                  return false;
+                }
             } else {
                 return wider[0] <= smaller[0] && smaller[0] <= "24:00" && "00:00" <= smaller[1] && smaller[1] <= wider[1];
               }
@@ -830,12 +832,12 @@ var TransportHours = function () {
       }
 
       var goneOverMidnight = false;
-      condHours.sort(function (a, b) {
+      var sortedCondHours = condHours.slice(0).sort(function (a, b) {
         return _this3.intervalStringToMinutes(a[0]) - _this3.intervalStringToMinutes(b[0]);
       });
 
-      for (var i = 0; i < condHours.length; i++) {
-        var ch = condHours[i];
+      for (var i = 0; i < sortedCondHours.length; i++) {
+        var ch = sortedCondHours[i];
 
         if (!goneOverMidnight) {
           if (ch[0] > ch[1]) {
@@ -843,7 +845,7 @@ var TransportHours = function () {
           }
 
           for (var j = 0; j < i; j++) {
-            if (this._hourRangeOverlap(ch, condHours[j])) {
+            if (this._hourRangeOverlap(ch, sortedCondHours[j])) {
               throw new Error("Conditional intervals are not exclusive (they overlaps)");
             }
           }
@@ -855,7 +857,8 @@ var TransportHours = function () {
       var ohHoursWithoutConds = [];
       ohHours.forEach(function (ohh, i) {
         var holes = [];
-        var thisCondHours = condHours.filter(function (ch) {
+        var ohhOverMidnight = ohh[0] > ohh[1];
+        var thisCondHours = (ohhOverMidnight ? condHours : sortedCondHours).filter(function (ch) {
           return _this3._hourRangeWithin(ohh, ch);
         });
         thisCondHours.forEach(function (ch, i) {
@@ -867,9 +870,11 @@ var TransportHours = function () {
             holes.push(ch[0]);
           }
 
-          if (!isFirst && thisCondHours[i - 1][1] < ch[0]) {
-            holes.push(thisCondHours[i - 1][1]);
-            holes.push(ch[0]);
+          if (!isFirst) {
+            if (thisCondHours[i - 1][1] < ch[0] || ohhOverMidnight && thisCondHours[i - 1][1] > ch[0]) {
+              holes.push(thisCondHours[i - 1][1]);
+              holes.push(ch[0]);
+            }
           }
 
           if (isLast) {
@@ -880,13 +885,20 @@ var TransportHours = function () {
                 appendLast = true;
               }
             } else {
-                if (ch[0] < ch[1]) {
+                if (ch[0] < ch[1] && ohh[0] <= ch[0] && ch[1] <= "24:00") {
                   appendLast = true;
-                } else {
-                    if (ch[1] < ohh[1]) {
-                      appendLast = true;
+                } else if (ch[0] < ch[1] && "00:00" <= ch[0] && ch[1] <= ohh[1]) {
+                    if (isFirst) {
+                      holes.push(ohh[0]);
+                      holes.push(ch[0]);
                     }
-                  }
+
+                    appendLast = true;
+                  } else {
+                      if (ch[1] < ohh[1]) {
+                        appendLast = true;
+                      }
+                    }
               }
 
             if (appendLast) {
